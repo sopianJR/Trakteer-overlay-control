@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Trakteer — Widget control</title>
+    <link rel="stylesheet" href="../utils/pi.css">
+</head>
+
+<body>
+    <div class="sdpi-wrapper" style="display: none">
+        <p class="section">Widget control</p>
+
+        <div class="row">
+            <label for="widget">Widget</label>
+            <select id="widget"></select>
+        </div>
+
+        <div class="row">
+            <label for="action">Action</label>
+            <select id="action"></select>
+        </div>
+
+        <div class="row hidden" id="row-amount">
+            <label for="amount">Amount</label>
+            <input id="amount" type="number" step="1" placeholder="seconds">
+        </div>
+
+        <div class="row hidden" id="row-kind">
+            <label for="kind">Kind</label>
+            <input id="kind" type="text" spellcheck="false" placeholder="support">
+        </div>
+
+        <div class="row">
+            <label for="streamKey">Stream key</label>
+            <input id="streamKey" type="password" autocomplete="off" spellcheck="false"
+                placeholder="your stream key">
+        </div>
+        <p class="hint">Widget endpoints look this key up in the Trakteer database, so a wrong key
+            answers <code>bad stream key</code> rather than failing silently.</p>
+
+        <div class="row">
+            <label for="label">Button label</label>
+            <input id="label" type="text" placeholder="(action name)">
+        </div>
+
+        <hr>
+
+        <div class="row">
+            <label for="baseUrl">Server</label>
+            <input id="baseUrl" type="text" spellcheck="false" placeholder="https://ws.trakteer.id">
+        </div>
+        <p class="hint" id="endpoint-hint"></p>
+    </div>
+
+    <script src="../utils/common.js"></script>
+    <script src="../utils/action.js"></script>
+    <script src="../utils/pi-common.js"></script>
+    <script src="../../plugin/lib/endpoints.js"></script>
+    <script src="index.js"></script>
+</body>
+
+</html>

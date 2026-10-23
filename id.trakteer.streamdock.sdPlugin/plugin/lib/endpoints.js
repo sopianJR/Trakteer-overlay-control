@@ -1,0 +1,241 @@
+/**
+ * Registry of trakteer-ws control endpoints.
+ *
+ * Data only — no I/O. Derived from reading the trakteer-ws source at commit 2393e7e:
+ *   src/api/controls/post-action.js
+ *   src/api/overlay/*.js
+ *   src/widgets/*.js
+ * See docs/endpoint-map.md for the full table and the evidence behind it.
+ *
+ * Two classes of endpoint, deliberately kept apart:
+ *
+ *   class "broadcast" — POST /api/controls/:action, body { token_id }.
+ *       The server does NOT whitelist the action; it only checks the token format
+ *       and that the room has subscribers, then republishes the action as `type`.
+ *
+ *   class "widget" — per-widget endpoints keyed on stream_key. The server looks the
+ *       stream key up in the database, validates the action against a whitelist,
+ *       persists widget state and then publishes.
+ */
+
+'use strict';
+
+/** Actions documented for the generic broadcast endpoint (docs/stream-deck.md). */
+const BROADCAST_ACTIONS = [
+    { id: 'play', label: 'Play' },
+    { id: 'pause', label: 'Pause' },
+    { id: 'next', label: 'Next' },
+    { id: 'censor-text-alert', label: 'Censor text' },
+    { id: 'censor-media-share', label: 'Censor media' },
+];
+
+/** Media types accepted by the newtip test alert (docs/stream-deck.md). */
+const TEST_ALERT_MEDIA = [
+    { id: 'null', label: 'Text only' },
+    { id: 'youtube', label: 'YouTube' },
+    { id: 'tiktok', label: 'TikTok' },
+    { id: 'gif', label: 'GIF' },
+    { id: 'voice', label: 'Voice note' },
+    { id: 'image', label: 'Image' },
+];
+
+/**
+ * Per-widget control endpoints.
+ *
+ * Each action describes exactly how to build the request:
+ *   method    'GET' | 'POST'
+ *   path      literal path, or a path with ":action" substituted from `action`
+ *   send      'query' | 'body' — where stream_key and the extras go
+ *   keyField  name the endpoint uses for the stream key
+ *   action    value put in the path or in the action field; null when the endpoint
+ *             takes no action at all (e.g. goal/update-adjustment)
+ *   actionField  field name for the action when it is not in the path
+ *   extras    fixed extra fields merged into query/body
+ *   needs     user-supplied fields this action requires, declared so the Property
+ *             Inspector can ask for them and the plugin can refuse early
+ *
+ * `free_action: true` on a widget means the server accepts any non-empty action
+ * string (milestone, polling); the listed ones are what the code publishes.
+ */
+const WIDGETS = {
+    'alert-queue': {
+        label: 'Alert box / queue',
+        actions: [
+            { id: 'play', label: 'Play', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'next', label: 'Next', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'prev', label: 'Previous', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'hold', label: 'Hold', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'resume', label: 'Resume', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'autoplay', label: 'Toggle autoplay', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'clear', label: 'Clear queue', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'censor-text', label: 'Toggle censor text', method: 'GET', path: '/api/overlay/alert-queue/control/censor-text', send: 'query', keyField: 'token', action: null },
+            { id: 'censor-media', label: 'Toggle censor media', method: 'GET', path: '/api/overlay/alert-queue/control/censor-media', send: 'query', keyField: 'token', action: null },
+        ],
+    },
+    soundboard: {
+        label: 'Soundboard (overlay)',
+        actions: [
+            { id: 'toggle_hide', label: 'Toggle hide', method: 'GET', path: '/api/overlay/soundboard/control/:action', send: 'query', keyField: 'token' },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/soundboard/control/:action', send: 'query', keyField: 'token' },
+        ],
+    },
+    'soundboard-queue': {
+        label: 'Soundboard queue',
+        actions: [
+            { id: 'play', label: 'Play', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
+            { id: 'pause', label: 'Pause', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
+            { id: 'next', label: 'Next', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
+            { id: 'prev', label: 'Previous', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
+            { id: 'hold', label: 'Hold', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
+            { id: 'resume', label: 'Resume', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
+            { id: 'clear', label: 'Clear queue', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
+        ],
+    },
+    'musicbox-queue': {
+        label: 'Musicbox queue',
+        actions: [
+            { id: 'play', label: 'Play', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'next', label: 'Next', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'prev', label: 'Previous', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'hold', label: 'Hold', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'resume', label: 'Resume', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'clear', label: 'Clear queue', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
+        ],
+    },
+    'mabar-queue': {
+        label: 'Mabar queue',
+        actions: [
+            { id: 'lock', label: 'Lock', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'unlock', label: 'Unlock', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'move_all_to_queue', label: 'Move all to queue', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'complete_all_lobby', label: 'Complete all in lobby', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'remove_all_queued', label: 'Remove all queued', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
+            { id: 'widget_reset', label: 'Reset widget', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
+        ],
+    },
+    'qr-code': {
+        label: 'QR code',
+        actions: [
+            { id: 'toggle_hide', label: 'Toggle hide', method: 'GET', path: '/api/overlay/qr-code/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'qr-code' } },
+            { id: 'toggle_open_close', label: 'Toggle open/close', method: 'GET', path: '/api/overlay/qr-code/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'qr-code' } },
+            { id: 'toggle_flash', label: 'Toggle flash', method: 'GET', path: '/api/overlay/qr-code/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'qr-code' } },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/qr-code/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'qr-code' } },
+        ],
+    },
+    activity: {
+        label: 'Activity feed',
+        actions: [
+            { id: 'toggle_pause', label: 'Toggle pause', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
+            { id: 'toggle_hide', label: 'Toggle hide', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
+            { id: 'scroll_up', label: 'Scroll up', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
+            { id: 'scroll_down', label: 'Scroll down', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
+            { id: 'reset_scroll', label: 'Reset scroll', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
+            { id: 'clear_activity', label: 'Clear activity', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
+            { id: 'test_event', label: 'Test event (needs kind)', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' }, needs: ['kind'] },
+        ],
+    },
+    timer: {
+        label: 'Timer',
+        actions: [
+            { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'resume', label: 'Resume', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'flash', label: 'Flash', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'unflash', label: 'Unflash', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'lock', label: 'Lock', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'unlock', label: 'Unlock', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'add', label: 'Add time (needs amount)', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action', needs: ['amount'] },
+            { id: 'subtract', label: 'Subtract time (needs amount)', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action', needs: ['amount'] },
+            { id: 'set', label: 'Set time (needs amount)', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action', needs: ['amount'] },
+            { id: 'refresh', label: 'Refresh', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+        ],
+    },
+    'running-text': {
+        label: 'Running text',
+        actions: [
+            { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'resume', label: 'Resume', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'flash', label: 'Flash', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'unflash', label: 'Unflash', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'refresh', label: 'Refresh', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+        ],
+    },
+    leaderboard: {
+        label: 'Leaderboard',
+        actions: [
+            { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'flash', label: 'Flash', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'unflash', label: 'Unflash', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'mute', label: 'Mute', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'unmute', label: 'Unmute', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'refresh', label: 'Refresh', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+        ],
+    },
+    goal: {
+        label: 'Goal',
+        actions: [
+            { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'flash-on', label: 'Flash on', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'flash-off', label: 'Flash off', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+        ],
+    },
+    gacha: {
+        label: 'Gacha',
+        actions: [
+            { id: 'spin', label: 'Spin', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'close_result', label: 'Close result', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'close_and_remove', label: 'Close and remove result', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'flash-on', label: 'Flash on', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'flash-off', label: 'Flash off', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+        ],
+    },
+};
+
+/** @returns {string[]} widget ids in registry order */
+function widgetIds() {
+    return Object.keys(WIDGETS);
+}
+
+/**
+ * Look an action up.
+ * @param {string} widgetId
+ * @param {string} actionId
+ * @returns {object|null} the action descriptor, or null when unknown
+ */
+function findAction(widgetId, actionId) {
+    const widget = WIDGETS[widgetId];
+    if (!widget) return null;
+    return widget.actions.find((a) => a.id === actionId) || null;
+}
+
+const registry = {
+    BROADCAST_ACTIONS,
+    TEST_ALERT_MEDIA,
+    WIDGETS,
+    widgetIds,
+    findAction,
+};
+
+// Loaded two ways: `require`d by the Node plugin process, and <script src>'d by the
+// Property Inspector page so both sides share one source of truth for the action lists.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = registry;
+} else if (typeof window !== 'undefined') {
+    window.TRAKTEER_ENDPOINTS = registry;
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Trakteer — Overlay control</title>
+    <link rel="stylesheet" href="../utils/pi.css">
+</head>
+
+<body>
+    <div class="sdpi-wrapper" style="display: none">
+        <p class="section">Overlay control</p>
+
+        <div class="row">
+            <label for="action">Action</label>
+            <select id="action"></select>
+        </div>
+
+        <div class="row">
+            <label for="tokenId">Token ID</label>
+            <input id="tokenId" type="password" autocomplete="off" spellcheck="false"
+                placeholder="your stream token">
+        </div>
+        <p class="hint">Stream token from your Trakteer overlay settings. Stored by StreamDock
+            with this button's settings only.</p>
+
+        <div class="row">
+            <label for="label">Button label</label>
+            <input id="label" type="text" placeholder="(action name)">
+        </div>
+
+        <hr>
+
+        <div class="row">
+            <label for="baseUrl">Server</label>
+            <input id="baseUrl" type="text" spellcheck="false" placeholder="https://ws.trakteer.id">
+        </div>
+        <p class="hint">Leave as is for production. Dev: <code>http://ws.trakteer.lab</code></p>
+    </div>
+
+    <script src="../utils/common.js"></script>
+    <script src="../utils/action.js"></script>
+    <script src="../utils/pi-common.js"></script>
+    <script src="../../plugin/lib/endpoints.js"></script>
+    <script src="index.js"></script>
+</body>
+
+</html>

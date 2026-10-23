@@ -1,0 +1,80 @@
+/* Minimal Property Inspector styling.
+   Deliberately self-contained: no bootstrap, no webfonts, no external assets,
+   so the plugin folder carries nothing it does not control. */
+
+:root {
+    --bg: #2d2d2d;
+    --fg: #e8e8e8;
+    --muted: #9b9b9b;
+    --line: #4a4a4a;
+    --field: #3a3a3a;
+    --accent: #ff6b35;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    padding: 10px 12px;
+    font: 13px/1.45 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+}
+
+::-webkit-scrollbar { display: none; }
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 9px;
+}
+
+.row > label {
+    flex: 0 0 96px;
+    color: var(--muted);
+    text-align: right;
+    font-size: 12px;
+}
+
+.row > input,
+.row > select {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 5px 7px;
+    color: var(--fg);
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font: inherit;
+}
+
+.row > input:focus,
+.row > select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.hint {
+    margin: 2px 0 10px 104px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.hint.warn { color: #e0a33e; }
+
+hr {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 12px 0;
+}
+
+.section {
+    margin: 0 0 8px 0;
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.hidden { display: none !important; }

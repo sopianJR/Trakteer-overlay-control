@@ -1,0 +1,13 @@
+{
+  "name": "trakteer-streamdock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StreamDock plugin to control Trakteer stream overlay widgets",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/",
+    "check": "node tools/check-manifest.js",
+    "mock": "node tools/mock-ws-server.js",
+    "verify": "npm run check && npm test"
+  }
+}

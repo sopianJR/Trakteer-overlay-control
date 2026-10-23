@@ -1,0 +1,104 @@
+{
+  "Actions": [
+    {
+      "Icon": "static/icon-action.png",
+      "Name": "Overlay control",
+      "States": [
+        {
+          "Image": "static/key.png",
+          "TitleAlignment": "bottom",
+          "FontSize": "10"
+        }
+      ],
+      "Settings": {
+        "baseUrl": "https://ws.trakteer.id",
+        "action": "next",
+        "tokenId": "",
+        "label": ""
+      },
+      "Controllers": ["Keypad"],
+      "UserTitleEnabled": true,
+      "SupportedInMultiActions": true,
+      "Tooltip": "Play, pause, next or censor the current alert (POST /api/controls/:action)",
+      "UUID": "id.trakteer.streamdock.generic",
+      "PropertyInspectorPath": "propertyInspector/generic/index.html"
+    },
+    {
+      "Icon": "static/icon-action.png",
+      "Name": "Test alert",
+      "States": [
+        {
+          "Image": "static/key.png",
+          "TitleAlignment": "bottom",
+          "FontSize": "10"
+        }
+      ],
+      "Settings": {
+        "baseUrl": "https://ws.trakteer.id",
+        "media": "null",
+        "quantity": 1,
+        "tokenId": "",
+        "label": "Test"
+      },
+      "Controllers": ["Keypad"],
+      "UserTitleEnabled": true,
+      "SupportedInMultiActions": true,
+      "Tooltip": "Fire a test alert on the overlay (POST /api/controls/newtip)",
+      "UUID": "id.trakteer.streamdock.testalert",
+      "PropertyInspectorPath": "propertyInspector/testalert/index.html"
+    },
+    {
+      "Icon": "static/icon-action.png",
+      "Name": "Widget control",
+      "States": [
+        {
+          "Image": "static/key.png",
+          "TitleAlignment": "bottom",
+          "FontSize": "10"
+        }
+      ],
+      "Settings": {
+        "baseUrl": "https://ws.trakteer.id",
+        "widget": "alert-queue",
+        "action": "play",
+        "streamKey": "",
+        "amount": "",
+        "kind": "",
+        "label": ""
+      },
+      "Controllers": ["Keypad"],
+      "UserTitleEnabled": true,
+      "SupportedInMultiActions": true,
+      "Tooltip": "Control one Trakteer overlay widget (timer, goal, gacha, queue, ...)",
+      "UUID": "id.trakteer.streamdock.widget",
+      "PropertyInspectorPath": "propertyInspector/widget/index.html"
+    }
+  ],
+  "SDKVersion": 1,
+  "Author": "Trakteer",
+  "Name": "Trakteer Overlay Control",
+  "Icon": "static/icon-plugin.png",
+  "CodePathWin": "plugin/index.js",
+  "CodePathMac": "plugin/index.js",
+  "Description": "Control Trakteer stream overlay widgets from a StreamDock macropad.",
+  "Category": "Trakteer",
+  "CategoryIcon": "static/icon-plugin.png",
+  "Version": "0.1.0",
+  "URL": "https://trakteer.id",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "7"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "10.15"
+    }
+  ],
+  "Software": {
+    "MinimumVersion": "3.10.188.226"
+  },
+  "Nodejs": {
+    "Version": "20"
+  }
+}

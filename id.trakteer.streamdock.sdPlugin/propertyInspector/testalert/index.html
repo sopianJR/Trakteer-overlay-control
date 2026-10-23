@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Trakteer — Test alert</title>
+    <link rel="stylesheet" href="../utils/pi.css">
+</head>
+
+<body>
+    <div class="sdpi-wrapper" style="display: none">
+        <p class="section">Test alert</p>
+
+        <div class="row">
+            <label for="media">Media</label>
+            <select id="media"></select>
+        </div>
+
+        <div class="row">
+            <label for="quantity">Quantity</label>
+            <input id="quantity" type="number" min="1" step="1" value="1">
+        </div>
+
+        <div class="row">
+            <label for="tokenId">Token ID</label>
+            <input id="tokenId" type="password" autocomplete="off" spellcheck="false"
+                placeholder="your stream token">
+        </div>
+
+        <div class="row">
+            <label for="label">Button label</label>
+            <input id="label" type="text" placeholder="Test">
+        </div>
+
+        <hr>
+
+        <div class="row">
+            <label for="baseUrl">Server</label>
+            <input id="baseUrl" type="text" spellcheck="false" placeholder="https://ws.trakteer.id">
+        </div>
+        <p class="hint">Sends <code>POST /api/controls/newtip</code>. The overlay must be open in
+            OBS, otherwise the server answers <code>room_not_found</code>.</p>
+    </div>
+
+    <script src="../utils/common.js"></script>
+    <script src="../utils/action.js"></script>
+    <script src="../utils/pi-common.js"></script>
+    <script src="../../plugin/lib/endpoints.js"></script>
+    <script src="index.js"></script>
+</body>
+
+</html>
