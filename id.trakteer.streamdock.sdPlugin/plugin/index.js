@@ -3,7 +3,7 @@
  *
  * Three actions:
  *   generic   — POST /api/controls/:action with token_id (play/pause/next/censor…)
- *   testalert — POST /api/controls/newtip with a media payload
+ *   testalert — GET /api/overlay/alert-queue/test/:mediaType with a stream key
  *   widget    — the per-widget control endpoints (stream_key based)
  *
  * All request building lives in lib/; this file only wires StreamDock events to it.
@@ -14,7 +14,7 @@
 'use strict';
 
 const { Plugins, Actions, log } = require('./utils/plugin');
-const { DEFAULT_BASE_URL, buildBroadcastRequest, buildWidgetRequest, sendRequest, redactUrl } = require('./lib/trakteer-api');
+const { DEFAULT_BASE_URL, buildBroadcastRequest, buildWidgetRequest, buildTestAlertRequest, sendRequest, redactUrl } = require('./lib/trakteer-api');
 const { findAction } = require('./lib/endpoints');
 const { reportResult, clearTimer, setTitle } = require('./lib/feedback');
 
@@ -82,9 +82,14 @@ plugin.generic = new Actions({
     },
 });
 
-// ── Action: test alert (newtip) ──────────────────────────────────────────────
+// ── Action: test alert ───────────────────────────────────────────────────────
+// GET /api/overlay/alert-queue/test/:mediaType?token=<stream key> — the route the
+// dashboard's own test buttons use. The previous POST /api/controls/newtip answered
+// 200 but published a `newtip` type no overlay build handles, so nothing appeared
+// in OBS. `streamKey` is preferred; `tokenId` is still read so buttons configured
+// before this change keep working without being reconfigured.
 plugin.testalert = new Actions({
-    default: { baseUrl: DEFAULT_BASE_URL, media: 'null', quantity: 1, tokenId: '', label: 'Test' },
+    default: { baseUrl: DEFAULT_BASE_URL, media: 'notification', quantity: 1, streamKey: '', widgetType: 'alert-box', label: 'Test' },
     _willAppear({ context }) {
         const settings = plugin.testalert.data[context] || {};
         setTitle(plugin, context, restingLabel(settings, 'Test'));
@@ -99,19 +104,17 @@ plugin.testalert = new Actions({
     keyUp({ context }) {
         const settings = plugin.testalert.data[context] || {};
         const label = restingLabel(settings, 'Test');
-        // "null" in the Property Inspector means a text-only alert: send JSON null,
-        // which is what docs/stream-deck.md specifies for that case.
-        const media = settings.media === 'null' || !settings.media ? null : settings.media;
         const quantity = Math.max(1, parseInt(settings.quantity, 10) || 1);
         press({
             context,
             settings,
             label,
-            build: () => buildBroadcastRequest({
+            build: () => buildTestAlertRequest({
                 baseUrl: settings.baseUrl,
-                action: 'newtip',
-                tokenId: settings.tokenId,
-                extraBody: { payload: { media, quantity } },
+                media: settings.media,
+                streamKey: settings.streamKey || settings.tokenId,
+                quantity,
+                widgetType: settings.widgetType,
             }),
         });
     },

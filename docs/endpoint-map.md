@@ -91,6 +91,43 @@ ditentukan oleh overlay di sisi browser, bukan server.
 
 ---
 
+## 2b. Test alert: pakai route overlay, bukan `newtip`
+
+FAKTA (dibaca dari trakteer-ws dan trakteer-overslay, lihat §5 untuk daftar baris):
+
+- `POST /api/controls/newtip` **tidak menampilkan alert apa pun di OBS**. Handler
+  generic hanya mem-`publish` `{...payload, type: 'newtip', _ts}` lalu balas 200.
+  Tidak ada handler untuk `type: 'newtip'` di overlay v2 (`src` maupun `dist`),
+  maupun di overlay v1. Jadi 200 dari endpoint itu hanya berarti "ada subscriber
+  di room", bukan "alert tampil".
+- Route yang nyata memunculkan alert, dan yang dipakai tombol test di dashboard:
+
+  `GET /api/overlay/alert-queue/test/:mediaType?token=<stream key>[&widget_type=][&quantity=]`
+
+  Server menghidrasi satu item tip transient (`id: test-<mediaType>-<ts>`,
+  `source_type: 'tip'`, `variant: 'test'`, media payload default per tipe) lalu
+  mem-publish `alert-queue:test-alert` (atau `media-share-queue:test-alert` bila
+  `widget_type=media-share`). Overlay menangani event itu.
+- `:mediaType` yang didukung = daftar yang sama dengan dashboard:
+  `notification`, `tts`, `media-share-youtube`, `media-share-tiktok`,
+  `media-share-instagram`, `voice-note`, `gambar`, `gif`.
+  Tipe tak dikenal tidak ditolak: server menormalkannya dan jatuh ke alert teks.
+- Kredensialnya **stream key di query `token`** (alias `stream_key`), di-lookup ke DB
+  → `401 invalid_stream_key` kalau salah. `token_id` tidak dibaca route ini.
+- `widget_type` opsional; default server `alert-box`. Plugin mengirimnya eksplisit.
+- Route ini balas `200` walau tidak ada overlay yang subscribe (publish dilewati
+  lewat `rooms.hasRoom`), berbeda dengan route generic yang balas `404 room_not_found`.
+  Konsekuensi: pada aksi test alert, **200 bukan bukti alert tampil**.
+- Session `hold` membuat test diabaikan: balas `200 { ignored: true, reason: 'on_hold' }`.
+
+Di mana kreator melihat stream key-nya: Dashboard → Stream Overlay → Controls →
+**Stream Deck**. Modal itu menyusun URL API lengkap per aksi; nilai `token=` pada
+URL tersebut adalah stream key yang dipakai plugin. (`StreamDeckModal` di
+`trakteer-overslay/src/components/reusables/ControlModals.jsx:248,351`, diisi dari
+`frontend/fragments/loka/tools/streamOverlay/controlsPanel.js:112`.)
+
+---
+
 ## 3. Jawaban pertanyaan autentikasi
 
 1. `validateToken` (`src/auth.js:15`) = **validasi format saja**: tipe string,
@@ -119,3 +156,27 @@ ditentukan oleh overlay di sisi browser, bukan server.
 - Perilaku runtime melawan server produksi (butuh stream key nyata; tidak dilakukan).
 - Apakah `token_id` dan `stream_key` identik untuk 100% setup kreator
   (jalur kode mengarah ke ya, belum diuji dengan data nyata).
+- Apakah aksi generic `censor-text-alert` / `censor-media-share` masih ditangani
+  overlay mana pun. Grep di overlay v2 (`src` + `dist`), overlay v1, dan edge-cdn
+  = 0 hasil; satu-satunya pemakai yang tersisa adalah
+  `trakteer-ws/public/test-control.html:460`. Jadi nasibnya mungkin sama dengan
+  `newtip`: 200 tanpa efek. Belum dipastikan, karena bukan cakupan audit ini —
+  padanan kelas B-nya sudah tersedia di registry
+  (`alert-queue/censor-text`, `alert-queue/censor-media`).
+
+## 5. Bukti untuk §2b (path + baris)
+
+| Klaim | Bukti |
+|---|---|
+| route generic hanya publish `type` mentah lalu 200 | `trakteer-ws/src/api/controls/post-action.js:59-84` |
+| validasi token generic = format saja | `trakteer-ws/src/auth.js:15-29`, dipanggil di `post-action.js:43` |
+| route test alert + param `token`/`stream_key` | `trakteer-ws/src/api/overlay/get-alert-queue-test.js:113-126` |
+| media type didukung + payload default | `get-alert-queue-test.js:27-65,196-197` |
+| item transient yang dibentuk | `get-alert-queue-test.js:216-239` |
+| publish `alert-queue:test-alert`, dilewati bila room kosong | `get-alert-queue-test.js:242-251`; nama event dari `trakteer-ws/src/utils/queue-events.js:19-47` |
+| test diabaikan saat hold | `get-alert-queue-test.js:159-169` |
+| overlay menangani `queue:test-alert` | `trakteer-overslay/src/hooks/useAlertQueueWS.js:375-381,544-548`; prefix di `src/utils/queueEvents.js:19-67`; efek render di `src/hooks/useAlertBoxLiveState.js:183-201` |
+| tidak ada handler `newtip` di overlay | `grep -rn newtip` di `trakteer-overslay/src` = 0, di `trakteer-overslay/dist` = 0, di `trakteer/public/stream-overlay/{src,build}` = 0; overlay v1 hanya kenal `new-tip-success`/`-approved`/`-replay`/`-simulation` via Laravel Echo (`public/stream-overlay/src/notification/index.js:1075-1106`) |
+| daftar media type yang dipakai dashboard | `trakteer-overslay/src/constants/apiCatalog.js:55-62` |
+| dashboard memanggil route test ini | `trakteer-overslay/src/services/overlayService.js:440-456` |
+| `newtip` hanya dipakai doc lama + panel test | `trakteer-ws/docs/stream-deck.md:53`, `trakteer-ws/public/test-control.html:916` |

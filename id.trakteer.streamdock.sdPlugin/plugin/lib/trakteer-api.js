@@ -15,7 +15,7 @@ const http = require('node:http');
 const https = require('node:https');
 const { URL } = require('node:url');
 
-const { findAction } = require('./endpoints');
+const { findAction, resolveTestAlertMedia } = require('./endpoints');
 
 const DEFAULT_BASE_URL = 'https://ws.trakteer.id';
 const DEFAULT_TIMEOUT_MS = 8000;
@@ -152,6 +152,44 @@ function buildWidgetRequest({ baseUrl, widget, action, streamKey, values }) {
 }
 
 /**
+ * Build the test alert request: `GET /api/overlay/alert-queue/test/:mediaType`.
+ *
+ * This is the route the Trakteer dashboard's own test buttons use, and the only one
+ * that makes an alert appear in OBS: it hydrates a transient tip item and publishes
+ * it as `alert-queue:test-alert`, which the overlay handles. The older
+ * `POST /api/controls/newtip` answered 200 but only rebroadcast a raw `newtip`
+ * type that no overlay build listens for.
+ *
+ * The credential is the creator's **stream key** in the `token` query param — the
+ * same value the dashboard's Stream Deck modal puts in its URLs — and it is looked
+ * up in the database here, unlike the format-only check on /api/controls/:action.
+ *
+ * @param {object} params
+ * @param {string} params.baseUrl
+ * @param {string} params.media       media id or legacy newtip media id
+ * @param {string} params.streamKey
+ * @param {number|string} [params.quantity]
+ * @param {string} [params.widgetType] 'alert-box' (default) | 'media-share'
+ * @returns {{ ok: true, request: object } | { ok: false, error: string }}
+ */
+function buildTestAlertRequest({ baseUrl, media, streamKey, quantity, widgetType }) {
+    const mediaType = resolveTestAlertMedia(media);
+    const values = {};
+    if (quantity !== undefined && quantity !== null && quantity !== '') {
+        values.quantity = quantity;
+    }
+    if (widgetType) values.widget_type = widgetType;
+
+    return buildWidgetRequest({
+        baseUrl,
+        widget: 'alert-queue',
+        action: mediaType,
+        streamKey,
+        values,
+    });
+}
+
+/**
  * Perform a request built by one of the builders above.
  *
  * Never throws: every failure comes back as { ok: false, ... } so a button press
@@ -272,6 +310,7 @@ module.exports = {
     normalizeBaseUrl,
     buildBroadcastRequest,
     buildWidgetRequest,
+    buildTestAlertRequest,
     sendRequest,
     redactUrl,
     describeFailure,

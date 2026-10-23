@@ -10,6 +10,10 @@
  *   widget endpoints             stream_key looked up against a fixed list →
  *                                401 invalid_stream_key, 400 missing_stream_key,
  *                                400 invalid_action for an action outside the whitelist.
+ *   GET /api/overlay/alert-queue/test/:mediaType
+ *                                stream_key looked up the same way, any media type
+ *                                accepted, and 200 with the hydrated transient item
+ *                                even when no overlay is listening.
  *
  * It exists so the plugin's request building can be exercised end to end without
  * touching production. Every received request is echoed on stdout as one JSON line
@@ -188,7 +192,11 @@ const server = http.createServer(async (req, res) => {
 
     const action = pathAction || (route.actionField ? fields[route.actionField] : null);
     // Routes with no action at all (censor toggles) skip the whitelist check.
-    const needsAction = route.path.includes(':action') || route.actionField;
+    // The test alert route also skips it: the real server takes any `:mediaType`
+    // and falls back to a default payload, so whitelisting here would be stricter
+    // than production and could hide a bad media id the server tolerates.
+    const isTestRoute = url.pathname.startsWith('/api/overlay/alert-queue/test/');
+    const needsAction = !isTestRoute && (route.path.includes(':action') || route.actionField);
     if (needsAction) {
         if (!action) {
             json(res, 400, { error: 'missing_action' });
@@ -202,6 +210,28 @@ const server = http.createServer(async (req, res) => {
 
     if (streamKey !== KNOWN_KEY) {
         json(res, 401, { error: 'invalid_stream_key' });
+        return;
+    }
+
+    // The test alert route answers with the hydrated transient item, not a widget
+    // state blob (trakteer-ws src/api/overlay/get-alert-queue-test.js). It answers
+    // 200 even when no overlay is subscribed — the publish is simply skipped — so a
+    // 200 here does NOT prove an alert was shown. Mirrored faithfully, including
+    // that asymmetry with the broadcast route's 404.
+    if (url.pathname.startsWith('/api/overlay/alert-queue/test/')) {
+        const mediaType = action;
+        json(res, 200, {
+            success: true,
+            item: {
+                id: `test-${mediaType}-${Date.now()}`,
+                widget_type: fields.widget_type || 'alert-box',
+                variant: 'test',
+                source_type: 'tip',
+                quantity: Number(fields.quantity || 10),
+                status: 'playing',
+            },
+            mock_broadcast: ROOM_ONLINE,
+        });
         return;
     }
 

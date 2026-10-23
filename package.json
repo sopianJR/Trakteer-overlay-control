@@ -7,7 +7,8 @@
   "scripts": {
     "test": "node --test test/",
     "check": "node tools/check-manifest.js",
+    "check:pi": "node tools/check-property-inspectors.js",
     "mock": "node tools/mock-ws-server.js",
-    "verify": "npm run check && npm test"
+    "verify": "npm run check && npm run check:pi && npm test"
   }
 }

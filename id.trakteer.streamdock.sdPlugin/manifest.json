@@ -35,15 +35,16 @@
       ],
       "Settings": {
         "baseUrl": "https://ws.trakteer.id",
-        "media": "null",
+        "media": "notification",
+        "widgetType": "alert-box",
         "quantity": 1,
-        "tokenId": "",
+        "streamKey": "",
         "label": "Test"
       },
       "Controllers": ["Keypad"],
       "UserTitleEnabled": true,
       "SupportedInMultiActions": true,
-      "Tooltip": "Fire a test alert on the overlay (POST /api/controls/newtip)",
+      "Tooltip": "Fire a test alert on the overlay (GET /api/overlay/alert-queue/test/:mediaType)",
       "UUID": "id.trakteer.streamdock.testalert",
       "PropertyInspectorPath": "propertyInspector/testalert/index.html"
     },

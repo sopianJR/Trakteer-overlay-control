@@ -5,7 +5,12 @@ const $local = false, $back = false, $dom = {
     main: $('.sdpi-wrapper')
 };
 
-const { WIDGETS, findAction } = window.TRAKTEER_ENDPOINTS;
+// Reach the registry through its namespace object, never by re-declaring its names.
+// endpoints.js is a classic script on this page, so a top-level `const WIDGETS` here
+// used to collide with the one it declared and abort the page with a SyntaxError.
+// `$endpoints` follows the `$`-prefixed convention common.js/action.js use for page
+// singletons, so it cannot clash with a registry export.
+const $endpoints = window.TRAKTEER_ENDPOINTS;
 
 const FIELDS = [
     { id: 'widget', key: 'widget', default: 'alert-queue' },
@@ -18,12 +23,12 @@ const FIELDS = [
 ];
 
 // Widget list is fixed; the action list follows the selected widget.
-fillSelect('widget', Object.entries(WIDGETS).map(([id, w]) => ({ id, label: w.label })));
+fillSelect('widget', Object.entries($endpoints.WIDGETS).map(([id, w]) => ({ id, label: w.label })));
 
 /** Repopulate the action select for the chosen widget and show only the extras it needs. */
 function refreshDependentUi(settings) {
     const widgetId = document.getElementById('widget').value || settings.widget;
-    const widget = WIDGETS[widgetId];
+    const widget = $endpoints.WIDGETS[widgetId];
     if (!widget) return;
 
     const actionSelect = document.getElementById('action');
@@ -37,7 +42,7 @@ function refreshDependentUi(settings) {
         $settings.action = widget.actions[0].id;
     }
 
-    const descriptor = findAction(widgetId, actionSelect.value) || {};
+    const descriptor = $endpoints.findAction(widgetId, actionSelect.value) || {};
     const needs = descriptor.needs || [];
     toggleRow('row-amount', needs.includes('amount'));
     toggleRow('row-kind', needs.includes('kind'));
@@ -64,7 +69,7 @@ const $propEvent = {
         const s = settings || {};
         // Fill the widget select first so the action list is built for the right widget.
         const widgetEl = document.getElementById('widget');
-        if (s.widget && WIDGETS[s.widget]) widgetEl.value = s.widget;
+        if (s.widget && $endpoints.WIDGETS[s.widget]) widgetEl.value = s.widget;
         refreshDependentUi(s);
         binding.apply(s);
         refreshDependentUi(s);

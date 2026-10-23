@@ -19,6 +19,7 @@ const path = require('node:path');
 const {
     buildBroadcastRequest,
     buildWidgetRequest,
+    buildTestAlertRequest,
     sendRequest,
 } = require('../id.trakteer.streamdock.sdPlugin/plugin/lib/trakteer-api');
 
@@ -126,6 +127,72 @@ test('broadcast: a text-only test alert sends media null', async (t) => {
     await sendRequest(built.request);
 
     assert.equal(JSON.parse(mock.received.at(-1).body).payload.media, null);
+});
+
+// ── Test alert: the route that actually renders in OBS ──────────────────────
+
+test('test alert: GET the alert-queue test route, key as ?token=, 200 + item', async (t) => {
+    const mock = await startMock();
+    t.after(() => mock.stop());
+
+    const built = buildTestAlertRequest({
+        baseUrl: mock.baseUrl, media: 'notification', streamKey: KNOWN_KEY, quantity: 2,
+    });
+    const result = await sendRequest(built.request);
+
+    assert.equal(result.ok, true, `${result.status} ${result.error || ''}`);
+    assert.equal(result.status, 200);
+    assert.equal(result.body.success, true);
+    assert.ok(result.body.item, 'the server answers with the transient item it broadcast');
+
+    const seen = mock.received.at(-1);
+    assert.equal(seen.method, 'GET');
+    assert.equal(seen.path, '/api/overlay/alert-queue/test/notification');
+    assert.equal(seen.query.token, KNOWN_KEY);
+    assert.equal(seen.query.widget_type, 'alert-box');
+    assert.equal(seen.query.quantity, '2');
+    assert.equal(seen.body, null, 'GET carries no body');
+    assert.equal(seen.query.token_id, undefined, 'token_id belongs to the broadcast route only');
+});
+
+test('test alert: a legacy newtip media id lands on the mapped path', async (t) => {
+    const mock = await startMock();
+    t.after(() => mock.stop());
+
+    const built = buildTestAlertRequest({ baseUrl: mock.baseUrl, media: 'youtube', streamKey: KNOWN_KEY });
+    const result = await sendRequest(built.request);
+
+    assert.equal(result.ok, true, `${result.status} ${result.error || ''}`);
+    assert.equal(mock.received.at(-1).path, '/api/overlay/alert-queue/test/media-share-youtube');
+});
+
+test('test alert: an unknown stream key is reported as "bad stream key"', async (t) => {
+    const mock = await startMock();
+    t.after(() => mock.stop());
+
+    const built = buildTestAlertRequest({ baseUrl: mock.baseUrl, media: 'gif', streamKey: UNKNOWN_KEY });
+    const result = await sendRequest(built.request);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 401);
+    assert.equal(result.error, 'bad stream key');
+});
+
+test('test alert: every offered media type is accepted by the server route', async (t) => {
+    const mock = await startMock();
+    t.after(() => mock.stop());
+
+    const { TEST_ALERT_MEDIA } = require('../id.trakteer.streamdock.sdPlugin/plugin/lib/endpoints');
+    const failures = [];
+
+    for (const media of TEST_ALERT_MEDIA) {
+        const built = buildTestAlertRequest({ baseUrl: mock.baseUrl, media: media.id, streamKey: KNOWN_KEY });
+        if (!built.ok) { failures.push(`${media.id}: build ${built.error}`); continue; }
+        const result = await sendRequest(built.request);
+        if (!result.ok) failures.push(`${media.id}: ${result.status} ${result.error}`);
+    }
+
+    assert.deepEqual(failures, [], `media types rejected:\n${failures.join('\n')}`);
 });
 
 test('widget GET: 200 and the key travels as ?token=', async (t) => {

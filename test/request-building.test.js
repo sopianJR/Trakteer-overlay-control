@@ -11,11 +11,17 @@ const assert = require('node:assert/strict');
 const {
     buildBroadcastRequest,
     buildWidgetRequest,
+    buildTestAlertRequest,
     validateTokenFormat,
     normalizeBaseUrl,
     describeFailure,
 } = require('../id.trakteer.streamdock.sdPlugin/plugin/lib/trakteer-api');
-const { WIDGETS, findAction } = require('../id.trakteer.streamdock.sdPlugin/plugin/lib/endpoints');
+const {
+    WIDGETS,
+    findAction,
+    TEST_ALERT_MEDIA,
+    resolveTestAlertMedia,
+} = require('../id.trakteer.streamdock.sdPlugin/plugin/lib/endpoints');
 
 const TOKEN = 'mockstreamkey01';
 
@@ -55,6 +61,77 @@ test('broadcast request carries the newtip payload', () => {
     });
     assert.equal(built.ok, true);
     assert.deepEqual(built.request.body, { token_id: TOKEN, payload: { media: 'gif', quantity: 2 } });
+});
+
+// ── Test alert ──────────────────────────────────────────────────────────────
+// The alert only appears in OBS via GET /api/overlay/alert-queue/test/:mediaType;
+// POST /api/controls/newtip answers 200 but publishes a type no overlay handles.
+
+test('test alert hits the alert-queue test route with the key as ?token=', () => {
+    const built = buildTestAlertRequest({
+        baseUrl: 'https://ws.trakteer.id',
+        media: 'notification',
+        streamKey: TOKEN,
+        quantity: 3,
+    });
+    assert.equal(built.ok, true);
+    assert.equal(built.request.method, 'GET');
+    assert.equal(built.request.body, null, 'GET carries no body');
+
+    const url = new URL(built.request.url);
+    assert.equal(url.pathname, '/api/overlay/alert-queue/test/notification');
+    assert.equal(url.searchParams.get('token'), TOKEN);
+    assert.equal(url.searchParams.get('quantity'), '3');
+    assert.equal(url.searchParams.get('widget_type'), 'alert-box', 'alert box is the default target');
+    assert.equal(url.searchParams.has('token_id'), false, 'this route reads token, not token_id');
+});
+
+test('test alert media ids are the server path segments', () => {
+    for (const media of TEST_ALERT_MEDIA) {
+        const built = buildTestAlertRequest({ baseUrl: '', media: media.id, streamKey: TOKEN });
+        assert.equal(built.ok, true, `${media.id}: ${built.error}`);
+        assert.equal(
+            new URL(built.request.url).pathname,
+            `/api/overlay/alert-queue/test/${media.id}`,
+        );
+    }
+});
+
+test('legacy newtip media ids are translated, not rejected', () => {
+    assert.equal(resolveTestAlertMedia('null'), 'notification');
+    assert.equal(resolveTestAlertMedia(null), 'notification');
+    assert.equal(resolveTestAlertMedia(undefined), 'notification');
+    assert.equal(resolveTestAlertMedia(''), 'notification');
+    assert.equal(resolveTestAlertMedia('youtube'), 'media-share-youtube');
+    assert.equal(resolveTestAlertMedia('tiktok'), 'media-share-tiktok');
+    assert.equal(resolveTestAlertMedia('voice'), 'voice-note');
+    assert.equal(resolveTestAlertMedia('image'), 'gambar');
+    assert.equal(resolveTestAlertMedia('gif'), 'gif', 'already valid, passes through');
+    assert.equal(resolveTestAlertMedia('nonsense'), 'notification', 'unknown degrades to text');
+
+    const built = buildTestAlertRequest({ baseUrl: '', media: 'youtube', streamKey: TOKEN });
+    assert.equal(
+        new URL(built.request.url).pathname,
+        '/api/overlay/alert-queue/test/media-share-youtube',
+    );
+});
+
+test('test alert can target the media-share queue', () => {
+    const built = buildTestAlertRequest({
+        baseUrl: '', media: 'media-share-tiktok', streamKey: TOKEN, widgetType: 'media-share',
+    });
+    assert.equal(new URL(built.request.url).searchParams.get('widget_type'), 'media-share');
+});
+
+test('test alert omits quantity when none is given', () => {
+    const built = buildTestAlertRequest({ baseUrl: '', media: 'gif', streamKey: TOKEN });
+    assert.equal(new URL(built.request.url).searchParams.has('quantity'), false);
+});
+
+test('test alert refuses a bad stream key before any I/O', () => {
+    const built = buildTestAlertRequest({ baseUrl: '', media: 'gif', streamKey: 'x' });
+    assert.equal(built.ok, false);
+    assert.match(built.error, /stream key/);
 });
 
 test('broadcast request refuses a bad token before any I/O', () => {

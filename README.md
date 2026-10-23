@@ -16,8 +16,9 @@ id.trakteer.streamdock.sdPlugin/   paket plugin (ini yang dipasang)
   static/                          ikon PNG
 tools/mock-ws-server.js            mock trakteer-ws untuk uji lokal
 tools/check-manifest.js            cek manifest/paket
+tools/check-property-inspectors.js cek halaman PI dalam satu scope bersama
 tools/make-icons.js                generate ikon PNG
-test/                              50 test (unit + integrasi + runtime)
+test/                              78 test (unit + integrasi + runtime + PI)
 docs/endpoint-map.md               peta endpoint kontrol trakteer-ws
 docs/device-compatibility.md       riset perangkat yang didukung
 ```
@@ -27,7 +28,7 @@ docs/device-compatibility.md       riset perangkat yang didukung
 | Action StreamDock | Endpoint | Untuk apa |
 |---|---|---|
 | Overlay control | `POST /api/controls/:action` | play, pause, next, censor text, censor media |
-| Test alert | `POST /api/controls/newtip` | memicu alert uji (text, youtube, tiktok, gif, voice, image) |
+| Test alert | `GET /api/overlay/alert-queue/test/:mediaType` | memicu alert uji (notification, tts, youtube, tiktok, instagram, voice-note, gambar, gif) — route yang sama dengan tombol test di dashboard |
 | Widget control | endpoint per widget | alert queue, soundboard, musicbox, mabar, qr-code, activity, timer, running text, leaderboard, goal, gacha |
 
 Tabel lengkap endpoint, action valid, dan field body ada di `docs/endpoint-map.md`.
@@ -57,9 +58,15 @@ Elgato Stream Deck maupun Loupedeck — lihat `docs/device-compatibility.md`.
 
 Tarik salah satu action ke tombol, lalu isi di Property Inspector:
 
-- **Overlay control** dan **Test alert**: field `Token ID` — stream token dari
-  pengaturan overlay Trakteer.
-- **Widget control**: field `Stream key`.
+- **Overlay control**: field `Token ID` — stream token dari pengaturan overlay
+  Trakteer.
+- **Test alert** dan **Widget control**: field `Stream key`.
+
+Letak stream key: Dashboard → Stream Overlay → Controls → **Stream Deck**. Modal
+itu menampilkan URL API lengkap per aksi; nilai `token=` di URL tersebut adalah
+stream key yang dipakai kedua action di atas. Tombol **Test alert** yang dibuat
+dengan versi plugin sebelumnya (field `Token ID` + media `youtube`/`null`/dst)
+tetap jalan: nilainya dimigrasikan otomatis saat Property Inspector dibuka.
 
 Token disimpan StreamDock di settings tombol itu saja. Plugin tidak pernah
 menuliskannya ke file lain dan tidak pernah memasukkannya ke log: field `token`,
@@ -91,11 +98,18 @@ menyentuh server produksi.
 # cek paket: manifest, UUID vs handler, PI, ikon, syntax
 node tools/check-manifest.js
 
-# 50 test: unit (bangun request, wrap judul, redaksi log) + integrasi (HTTP ke mock)
+# cek halaman Property Inspector: muat tiap halaman dalam satu scope bersama
+# (seperti <script src> di browser), lalu buktikan form terisi.
+# Ini yang menangkap SyntaxError "Identifier 'X' has already been declared" —
+# node --check tidak bisa, karena ia hanya melihat satu file sekaligus.
+node tools/check-property-inspectors.js
+
+# 78 test: unit (bangun request, wrap judul, redaksi log) + integrasi (HTTP ke mock)
 #          + runtime (proses plugin nyata lewat fake host StreamDock)
+#          + Property Inspector (scope bersama, migrasi setting legacy)
 node --test test/
 
-# keduanya
+# semuanya
 npm run verify
 ```
 

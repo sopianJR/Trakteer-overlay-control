@@ -211,25 +211,69 @@ test('the widget action reports a bad stream key', async (t) => {
     assert.match(status.payload.title.replace(/\n/g, ' '), /stream key/);
 });
 
-test('the test alert action sends newtip with its media payload', async (t) => {
+test('the test alert action calls the alert-queue test route, not newtip', async (t) => {
     const mock = await startMock();
     const host = await startHost();
     t.after(async () => { await host.stop(); await mock.stop(); });
     await host.waitFor((f) => f.event === 'registerPlugin');
 
-    const settings = { baseUrl: mock.baseUrl, media: 'gif', quantity: 2, tokenId: KNOWN_KEY, label: 'Test' };
+    const settings = {
+        baseUrl: mock.baseUrl, media: 'gif', quantity: 2, streamKey: KNOWN_KEY,
+        widgetType: 'alert-box', label: 'Test',
+    };
     host.send(willAppear(TESTALERT, 'ctx-tip', settings));
     await host.waitFor((f) => f.event === 'setTitle' && f.context === 'ctx-tip');
     host.send(keyUp(TESTALERT, 'ctx-tip', settings));
 
     await host.waitFor((f) => f.event === 'showOk' && f.context === 'ctx-tip');
 
-    const request = mock.received.find((r) => r.path === '/api/controls/newtip');
-    assert.ok(request, `no newtip request; saw ${JSON.stringify(mock.received)}`);
-    assert.deepEqual(JSON.parse(request.body), {
-        token_id: KNOWN_KEY,
-        payload: { media: 'gif', quantity: 2 },
-    });
+    const request = mock.received.find((r) => r.path === '/api/overlay/alert-queue/test/gif');
+    assert.ok(request, `no test alert request; saw ${JSON.stringify(mock.received.map((r) => r.path))}`);
+    assert.equal(request.method, 'GET');
+    assert.equal(request.query.token, KNOWN_KEY);
+    assert.equal(request.query.widget_type, 'alert-box');
+    assert.equal(request.query.quantity, '2');
+
+    assert.equal(
+        mock.received.some((r) => r.path === '/api/controls/newtip'),
+        false,
+        'the dead newtip route must not be called any more',
+    );
+});
+
+test('a test alert button saved by the newtip version still works', async (t) => {
+    const mock = await startMock();
+    const host = await startHost();
+    t.after(async () => { await host.stop(); await mock.stop(); });
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    // Exactly what the previous release persisted: tokenId + a newtip media id.
+    const legacy = { baseUrl: mock.baseUrl, media: 'youtube', quantity: 1, tokenId: KNOWN_KEY, label: 'Test' };
+    host.send(willAppear(TESTALERT, 'ctx-legacy', legacy));
+    await host.waitFor((f) => f.event === 'setTitle' && f.context === 'ctx-legacy');
+    host.send(keyUp(TESTALERT, 'ctx-legacy', legacy));
+
+    await host.waitFor((f) => f.event === 'showOk' && f.context === 'ctx-legacy');
+
+    const request = mock.received.find((r) => r.path === '/api/overlay/alert-queue/test/media-share-youtube');
+    assert.ok(request, `legacy settings did not reach the test route; saw ${JSON.stringify(mock.received.map((r) => r.path))}`);
+    assert.equal(request.query.token, KNOWN_KEY, 'the old tokenId is used as the stream key');
+});
+
+test('a test alert with no stream key never reaches the network', async (t) => {
+    const mock = await startMock();
+    const host = await startHost();
+    t.after(async () => { await host.stop(); await mock.stop(); });
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    const settings = { baseUrl: mock.baseUrl, media: 'gif', quantity: 1, streamKey: '', label: 'Test' };
+    host.send(willAppear(TESTALERT, 'ctx-tip-nokey', settings));
+    await host.waitFor((f) => f.event === 'setTitle' && f.context === 'ctx-tip-nokey');
+    const before = mock.received.length;
+    host.send(keyUp(TESTALERT, 'ctx-tip-nokey', settings));
+
+    await host.waitFor((f) => f.event === 'showAlert' && f.context === 'ctx-tip-nokey');
+    assert.equal(mock.received.length, before, 'no HTTP request should have been made');
 });
 
 test('didReceiveSettings refreshes the resting title', async (t) => {

@@ -17,15 +17,23 @@
         </div>
 
         <div class="row">
+            <label for="widgetType">Target</label>
+            <select id="widgetType"></select>
+        </div>
+
+        <div class="row">
             <label for="quantity">Quantity</label>
             <input id="quantity" type="number" min="1" step="1" value="1">
         </div>
 
         <div class="row">
-            <label for="tokenId">Token ID</label>
-            <input id="tokenId" type="password" autocomplete="off" spellcheck="false"
-                placeholder="your stream token">
+            <label for="streamKey">Stream key</label>
+            <input id="streamKey" type="password" autocomplete="off" spellcheck="false"
+                placeholder="your stream key">
         </div>
+        <p class="hint">Dashboard → Stream Overlay → Controls → Stream Deck shows the
+            API URLs for your account; the stream key is the <code>token=</code> value
+            in them.</p>
 
         <div class="row">
             <label for="label">Button label</label>
@@ -38,8 +46,9 @@
             <label for="baseUrl">Server</label>
             <input id="baseUrl" type="text" spellcheck="false" placeholder="https://ws.trakteer.id">
         </div>
-        <p class="hint">Sends <code>POST /api/controls/newtip</code>. The overlay must be open in
-            OBS, otherwise the server answers <code>room_not_found</code>.</p>
+        <p class="hint">Sends <code>GET /api/overlay/alert-queue/test/&lt;media&gt;</code>,
+            the same endpoint as the dashboard's test buttons. The overlay must be open
+            in OBS, otherwise nothing is broadcast.</p>
     </div>
 
     <script src="../utils/common.js"></script>
