@@ -274,9 +274,71 @@ test('registry descriptors are internally consistent', () => {
             // The action must be addressable: either in the path or via a field.
             const addressable = action.path.includes(':action') || action.actionField || action.action === null;
             assert.ok(addressable, `${widgetId}/${action.id} has no way to carry its action`);
+            // An explicit wire action is a non-empty string, or null for "no action".
+            const wireOk = action.action === undefined
+                || action.action === null
+                || (typeof action.action === 'string' && action.action !== '');
+            assert.ok(wireOk, `${widgetId}/${action.id} action override must be a non-empty string or null`);
             assert.equal(findAction(widgetId, action.id), action);
         }
     }
+});
+
+test('no two actions of a widget send the same request', () => {
+    // Guards the shared-server-action pairs (milestone hide/show): a typo in `item`
+    // or `action` would make two buttons do the same thing.
+    for (const [widgetId, widget] of Object.entries(WIDGETS)) {
+        const seen = new Map();
+        for (const action of widget.actions) {
+            const values = {};
+            for (const need of action.needs || []) values[need] = need === 'amount' ? 10 : 'support';
+            const built = buildWidgetRequest({
+                baseUrl: 'https://ws.trakteer.id', widget: widgetId, action: action.id, streamKey: TOKEN, values,
+            });
+            const signature = `${built.request.method} ${built.request.url} ${JSON.stringify(built.request.body)}`;
+            assert.equal(
+                seen.has(signature),
+                false,
+                `${widgetId}/${action.id} sends the same request as ${widgetId}/${seen.get(signature)}`,
+            );
+            seen.set(signature, action.id);
+        }
+    }
+});
+
+test('milestone: show and hide share the server action `hide`, told apart by item', () => {
+    const query = (action) => {
+        const built = buildWidgetRequest({ baseUrl: '', widget: 'milestone', action, streamKey: TOKEN });
+        assert.equal(built.ok, true, `${action}: ${built.error}`);
+        const url = new URL(built.request.url);
+        assert.equal(built.request.method, 'GET');
+        assert.equal(url.pathname, '/api/overlay/milestone/control');
+        assert.equal(url.searchParams.get('stream_key'), TOKEN);
+        assert.equal(url.searchParams.has('token'), false, 'this route reads stream_key only');
+        return Object.fromEntries(url.searchParams);
+    };
+
+    assert.deepEqual(query('hide'), { stream_key: TOKEN, item: 'true', action: 'hide' });
+    assert.deepEqual(query('show'), { stream_key: TOKEN, item: 'false', action: 'hide' });
+    assert.deepEqual(query('flash-on'), { stream_key: TOKEN, item: 'true', action: 'flash' });
+    assert.deepEqual(query('flash-off'), { stream_key: TOKEN, item: 'false', action: 'flash' });
+    assert.deepEqual(query('restart'), { stream_key: TOKEN, item: 'false', action: 'restart' });
+});
+
+test('polling: result visibility sends the string the overlay compares against', () => {
+    const query = (action) => {
+        const built = buildWidgetRequest({ baseUrl: '', widget: 'polling', action, streamKey: TOKEN });
+        assert.equal(built.ok, true, `${action}: ${built.error}`);
+        const url = new URL(built.request.url);
+        assert.equal(url.pathname, '/api/overlay/polling/control');
+        return Object.fromEntries(url.searchParams);
+    };
+
+    // The overlay only tests `=== 'hidden'`; anything else shows the results.
+    assert.deepEqual(query('hide-results'), { stream_key: TOKEN, item: 'hidden', action: 'result_visibility' });
+    assert.deepEqual(query('show-results'), { stream_key: TOKEN, item: 'immediate', action: 'result_visibility' });
+    assert.deepEqual(query('refetch'), { stream_key: TOKEN, item: 'true', action: 'refetch' });
+    assert.deepEqual(query('show'), { stream_key: TOKEN, item: 'false', action: 'hide' });
 });
 
 test('failure descriptions map server errors to short button text', () => {

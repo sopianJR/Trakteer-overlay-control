@@ -18,7 +18,7 @@ tools/mock-ws-server.js            mock trakteer-ws untuk uji lokal
 tools/check-manifest.js            cek manifest/paket
 tools/check-property-inspectors.js cek halaman PI dalam satu scope bersama
 tools/make-icons.js                generate ikon PNG
-test/                              78 test (unit + integrasi + runtime + PI)
+test/                              86 test (unit + integrasi + runtime + PI)
 docs/endpoint-map.md               peta endpoint kontrol trakteer-ws
 docs/device-compatibility.md       riset perangkat yang didukung
 ```
@@ -29,7 +29,7 @@ docs/device-compatibility.md       riset perangkat yang didukung
 |---|---|---|
 | Overlay control | `POST /api/controls/:action` | play, pause, next, censor text, censor media |
 | Test alert | `GET /api/overlay/alert-queue/test/:mediaType` | memicu alert uji (notification, tts, youtube, tiktok, instagram, voice-note, gambar, gif) — route yang sama dengan tombol test di dashboard |
-| Widget control | endpoint per widget | alert queue, soundboard, musicbox, mabar, qr-code, activity, timer, running text, leaderboard, goal, gacha |
+| Widget control | endpoint per widget | alert queue, soundboard, musicbox, mabar, qr-code, activity, timer, running text, leaderboard, goal, milestone, polling, gacha |
 
 Tabel lengkap endpoint, action valid, dan field body ada di `docs/endpoint-map.md`.
 
@@ -104,7 +104,7 @@ node tools/check-manifest.js
 # node --check tidak bisa, karena ia hanya melihat satu file sekaligus.
 node tools/check-property-inspectors.js
 
-# 78 test: unit (bangun request, wrap judul, redaksi log) + integrasi (HTTP ke mock)
+# 86 test: unit (bangun request, wrap judul, redaksi log) + integrasi (HTTP ke mock)
 #          + runtime (proses plugin nyata lewat fake host StreamDock)
 #          + Property Inspector (scope bersama, migrasi setting legacy)
 node --test test/
@@ -141,9 +141,12 @@ kalau tidak server menjawab `room_not_found`.
   `3.10.188.226` di manifest. Kalau plugin tidak muncul di perangkat Ajazz,
   turunkan nilai itu ke `2.9` dan uji ulang.
 - Perilaku terhadap server produksi (butuh stream key asli).
-- Nilai `action` yang benar-benar ditangani overlay untuk widget `milestone` dan
-  `polling`: server kedua endpoint itu tidak punya whitelist, jadi keduanya
-  belum dimasukkan ke registry.
+- Efek tombol **milestone** dan **polling** di overlay yang terbuka. Server kedua
+  endpoint itu tidak punya whitelist, jadi nilai `action`/`item`-nya dibaca dari source
+  overlay (`useMilestoneWS.js`, `usePollingWS.js`, `apiCatalog.js`; bukti di
+  `docs/endpoint-map.md` §5), belum dicoba ke server produksi. Kedua route menjawab 200
+  walau overlay tidak terbuka, jadi `OK` di tombol ini belum membuktikan overlay menerima
+  perintah. Aksi polling `preview-data-source` tidak disertakan karena `item`-nya JSON.
 
 ## Catatan teknis
 

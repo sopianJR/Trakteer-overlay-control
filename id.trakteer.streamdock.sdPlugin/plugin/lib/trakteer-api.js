@@ -112,9 +112,13 @@ function buildWidgetRequest({ baseUrl, widget, action, streamKey, values }) {
         }
     }
 
-    // The action goes either into the path or into a field, never both.
+    // The action goes either into the path or into a field, never both. It is the
+    // descriptor's `action` when set, else its id: a server action that needs several
+    // buttons (milestone hide/show are both `hide`, told apart by `item`) keeps unique
+    // ids and names the wire value explicitly.
+    const actionValue = descriptor.action === undefined ? descriptor.id : descriptor.action;
     const inPath = descriptor.path.includes(':action');
-    const path = inPath ? descriptor.path.replace(':action', encodeURIComponent(descriptor.id)) : descriptor.path;
+    const path = inPath ? descriptor.path.replace(':action', encodeURIComponent(actionValue)) : descriptor.path;
 
     const fields = {
         [descriptor.keyField]: streamKey,
@@ -122,7 +126,7 @@ function buildWidgetRequest({ baseUrl, widget, action, streamKey, values }) {
         ...supplied,
     };
     if (!inPath && descriptor.actionField) {
-        fields[descriptor.actionField] = descriptor.id;
+        fields[descriptor.actionField] = actionValue;
     }
 
     const base = normalizeBaseUrl(baseUrl);

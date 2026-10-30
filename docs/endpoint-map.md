@@ -77,9 +77,9 @@ tidak ada passcode pada jalur ini). Kelas A = format token saja.
 | goal — nominal | `POST /api/overlay/goal/update-adjustment` | — (tidak pakai `action`) | body `stream_key`, `progress_adjustment`, `target_adjustment` → publish `goal:update-amount` | DB stream_key |
 | gacha | `GET /api/overlay/gacha/control` | `get`/`status` (default), `spin` (alias `spin-gacha`, `spin_gacha`, `putar-gacha`), `close_result`/`close-result`, `close_and_remove`(+alias), `hide`, `show`/`unhide`, `flash-on`/`flash`, `flash-off`/`unflash`, `restart` | query `stream_key` atau `token`, `action` | DB stream_key |
 | gacha — nominal | `POST /api/overlay/gacha-adjustment` | `add_progress`, `set_zero`, `update_queue`, `update_min_amount`, `update_target_amount`, `update_spin_mode` | body `stream_key`, `action`, `value` | DB stream_key |
-| milestone | `GET /api/overlay/milestone/control` | bebas (hanya di-publish sebagai `milestone:control` + `action`); server hanya cek **tidak kosong** | query `stream_key`, `item` (wajib, non-empty), `action` (wajib) | DB stream_key |
+| milestone | `GET /api/overlay/milestone/control` | server: bebas (hanya di-publish sebagai `milestone:control` + `action`), cek **tidak kosong**. Overlay menangani: `hide`, `flash` (`item` `true`/`false`), `restart` | query `stream_key`, `item` (wajib, non-empty), `action` (wajib) | DB stream_key |
 | milestone — nominal | `POST /api/overlay/milestone/update-adjustment-amount` | — | body `stream_key`, `amount` → publish `milestone:update-amount` | DB stream_key |
-| polling | `GET /api/overlay/polling/control` | bebas; `result_visibility` dan `preview-data-source` memakai `item` sebagai string, action lain mengubah `item` jadi boolean | query `stream_key`, `item` (wajib), `action` (wajib) | DB stream_key |
+| polling | `GET /api/overlay/polling/control` | server: bebas; `result_visibility` dan `preview-data-source` memakai `item` sebagai string, action lain mengubah `item` jadi boolean. Overlay menangani: `hide`, `flash` (`true`/`false`), `result_visibility` (`hidden` menyembunyikan, nilai lain menampilkan), `refetch`, `restart`, `preview-data-source` (`item` berisi JSON; tidak dipakai plugin) | query `stream_key`, `item` (wajib), `action` (wajib) | DB stream_key |
 | polling — vote | `POST /api/overlay/polling/post-polling-vote-modification` | — | body `stream_key`, `option_id`, `quantity_vote` → publish `polling:update-vote-by-creator` | DB stream_key |
 | polling — reset | `POST /api/overlay/polling/post-reset-polling-vote-modification` | — | body (lihat file) | DB stream_key |
 | room presence | `GET /api/rooms/:tokenId` | — | path `tokenId`, opsional query `widget` | **tanpa auth** |
@@ -87,7 +87,26 @@ tidak ada passcode pada jalur ini). Kelas A = format token saja.
 
 Catatan: `milestone/control` dan `polling/control` **tidak punya whitelist action**.
 Server hanya menolak kalau `action` atau `item` kosong. Nilai action yang dikenali
-ditentukan oleh overlay di sisi browser, bukan server.
+ditentukan oleh overlay di sisi browser, bukan server (daftarnya di kolom "Action valid"
+di atas, dibaca dari source overlay; lihat §5).
+
+Tiga hal yang membedakan dua route ini dari widget lain:
+
+- Hanya membaca `stream_key`. Alias `token` **tidak** dibaca, jadi `?token=` dijawab
+  `400 missing_stream_key`.
+- Urutan cek: `stream_key` → `item` → `action` → lookup DB (`401 invalid_stream_key`).
+- Tidak memeriksa room (`rooms.hasRoom`), jadi menjawab `200` walau tidak ada overlay yang
+  terbuka. Sama seperti test alert, 200 di sini **bukan** bukti overlay menerima perintah.
+  Body respons juga menggemakan `stream_key`.
+
+Satu action server dipakai beberapa tombol, dibedakan lewat `item`: "Show" milestone/polling
+adalah `action=hide&item=false`. Plugin menamai tombolnya `show` dan mengirim `hide`
+lewat field `action` di registry (lihat `lib/endpoints.js`).
+
+`result_visibility`: katalog Stream Deck dan default widget memakai `immediate`, panel
+dashboard mengirim `visible`. Renderer hanya membandingkan dengan `'hidden'`
+(`PollingCustom.jsx:211`, `PollingLite.jsx:353`), jadi keduanya sama-sama menampilkan hasil.
+Plugin mengikuti katalog (`immediate`).
 
 ---
 
@@ -151,8 +170,9 @@ URL tersebut adalah stream key yang dipakai plugin. (`StreamDeckModal` di
 
 ## 4. Yang belum diverifikasi
 
-- Nilai `action` apa saja yang benar-benar ditangani overlay untuk
-  `milestone/control` dan `polling/control` (butuh baca repo trakteer-overslay).
+- Efek `milestone/control` dan `polling/control` di overlay yang benar-benar terbuka.
+  Nilai action-nya sudah dipastikan dari source overlay (§5), tapi belum dicoba ke
+  server produksi.
 - Perilaku runtime melawan server produksi (butuh stream key nyata; tidak dilakukan).
 - Apakah `token_id` dan `stream_key` identik untuk 100% setup kreator
   (jalur kode mengarah ke ya, belum diuji dengan data nyata).
@@ -180,3 +200,19 @@ URL tersebut adalah stream key yang dipakai plugin. (`StreamDeckModal` di
 | daftar media type yang dipakai dashboard | `trakteer-overslay/src/constants/apiCatalog.js:55-62` |
 | dashboard memanggil route test ini | `trakteer-overslay/src/services/overlayService.js:440-456` |
 | `newtip` hanya dipakai doc lama + panel test | `trakteer-ws/docs/stream-deck.md:53`, `trakteer-ws/public/test-control.html:916` |
+
+### Milestone dan polling (§2 baris milestone/polling)
+
+Server `trakteer-ws` 2393e7e; overlay `trakteer-overslay` 43bfc63
+(`/usr/src/trakteer/data/web/html/web/resources/trakteer-overslay`).
+
+| Klaim | Bukti |
+|---|---|
+| wajib `stream_key`, `item`, `action` (urutan cek), lalu lookup DB; tanpa alias `token`; tanpa cek room | `trakteer-ws/src/api/overlay/get-milestone-control.js:21-44`, `get-polling-control.js:21-44` |
+| `item` jadi boolean (`'true'` → true), kecuali polling `result_visibility` / `preview-data-source` yang string | `get-milestone-control.js:48`, `get-polling-control.js:46` |
+| overlay milestone menangani `flash`, `hide`, `restart` | `trakteer-overslay/src/hooks/useMilestoneWS.js:99-130` |
+| overlay polling menangani `flash`, `hide`, `result_visibility`, `refetch`, `preview-data-source`, `restart` | `src/hooks/usePollingWS.js:126-183` |
+| daftar Stream Deck resmi: hide/show/flash (+ `result_visibility` `hidden`/`immediate` untuk polling) | `src/constants/apiCatalog.js:105-152` |
+| panel dashboard mengirim `restart` dengan `item=false` | `src/components/widgets/milestone/control/MilestoneControl.jsx:176`, `polling/control/PollingControl.jsx:190` |
+| renderer hanya membandingkan `resultVisibility` dengan `'hidden'`; panel dashboard mengirim `visible` | `src/components/widgets/PollingCustom.jsx:211`, `PollingLite.jsx:353`, `polling/control/PollingControl.jsx:239` |
+| default `resultVisibility` = `immediate` | `src/constants/widgetDefaults.js:982` |

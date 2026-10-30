@@ -342,6 +342,16 @@ test('the log file never contains a token or stream key', async (t) => {
     host.send(keyUp(GENERIC, 'ctx-leak-g', genericSettings));
     await host.waitFor((f) => f.event === 'showOk' && f.context === 'ctx-leak-g');
 
+    // milestone/polling echo the stream key back in their response body, so this press
+    // proves the body never reaches the log, only the redacted request line does.
+    const pollingSettings = {
+        baseUrl: mock.baseUrl, widget: 'polling', action: 'hide-results', streamKey: UNIQUE_KEY, amount: '', kind: '', label: '',
+    };
+    host.send(willAppear(WIDGET, 'ctx-leak-p', pollingSettings));
+    await host.waitFor((f) => f.event === 'setTitle' && f.context === 'ctx-leak-p');
+    host.send(keyUp(WIDGET, 'ctx-leak-p', pollingSettings));
+    await host.waitFor((f) => f.event === 'showOk' && f.context === 'ctx-leak-p');
+
     // log4js flushes asynchronously; give it a moment before reading.
     await new Promise((r) => setTimeout(r, 400));
 

@@ -259,6 +259,66 @@ test('widget: timer add carries the amount', async (t) => {
     assert.equal(seen.query.amount, '120');
 });
 
+test('milestone: show reaches the server as action=hide&item=false', async (t) => {
+    const mock = await startMock();
+    t.after(() => mock.stop());
+
+    const built = buildWidgetRequest({
+        baseUrl: mock.baseUrl, widget: 'milestone', action: 'show', streamKey: KNOWN_KEY,
+    });
+    const result = await sendRequest(built.request);
+
+    assert.equal(result.ok, true, `${result.status} ${result.error || ''}`);
+    const seen = mock.received.at(-1);
+    assert.equal(seen.method, 'GET');
+    assert.equal(seen.path, '/api/overlay/milestone/control');
+    assert.deepEqual(seen.query, { stream_key: KNOWN_KEY, item: 'false', action: 'hide' });
+    // The server echoes the request in `data`, stream key included.
+    assert.deepEqual(result.body, {
+        success: 'true', data: { stream_key: KNOWN_KEY, item: 'false', action: 'hide' },
+    });
+});
+
+test('polling: hiding results sends the string item, not a boolean', async (t) => {
+    const mock = await startMock();
+    t.after(() => mock.stop());
+
+    const built = buildWidgetRequest({
+        baseUrl: mock.baseUrl, widget: 'polling', action: 'hide-results', streamKey: KNOWN_KEY,
+    });
+    const result = await sendRequest(built.request);
+
+    assert.equal(result.ok, true, `${result.status} ${result.error || ''}`);
+    assert.deepEqual(mock.received.at(-1).query, {
+        stream_key: KNOWN_KEY, item: 'hidden', action: 'result_visibility',
+    });
+});
+
+test('milestone/polling: 200 even when no overlay is listening, unlike the broadcast route', async (t) => {
+    // The server never consults the room for these two routes, so a 200 here is not
+    // proof that an overlay received anything (documented in docs/endpoint-map.md).
+    const mock = await startMock({ MOCK_ROOM_ONLINE: '0' });
+    t.after(() => mock.stop());
+
+    for (const widget of ['milestone', 'polling']) {
+        const built = buildWidgetRequest({ baseUrl: mock.baseUrl, widget, action: 'hide', streamKey: KNOWN_KEY });
+        const result = await sendRequest(built.request);
+        assert.equal(result.ok, true, `${widget}: ${result.status} ${result.error || ''}`);
+    }
+});
+
+test('milestone/polling: a request without item is refused, as the server does', async (t) => {
+    const mock = await startMock();
+    t.after(() => mock.stop());
+
+    for (const widget of ['milestone', 'polling']) {
+        const url = `${mock.baseUrl}/api/overlay/${widget}/control?stream_key=${KNOWN_KEY}&action=hide`;
+        const result = await sendRequest({ method: 'GET', url, headers: {}, body: null });
+        assert.equal(result.status, 400, widget);
+        assert.equal(result.error, 'missing_item', widget);
+    }
+});
+
 test('every registry action is accepted by the mock server', async (t) => {
     const mock = await startMock();
     t.after(() => mock.stop());

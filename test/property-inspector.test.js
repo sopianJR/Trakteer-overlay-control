@@ -159,6 +159,30 @@ test('widget: the action list follows the selected widget and extras appear', ()
     assert.match(pi.document.getElementById('endpoint-hint').textContent, /^GET \/api\/overlay\/timer\/control$/);
 });
 
+test('widget: polling and milestone are selectable and list their own actions', () => {
+    const pi = loadPropertyInspector('widget');
+    pi.evaluate(`(() => {
+        const payload = { settings: { widget: 'polling', action: 'show-results', streamKey: 'mockstreamkey01' } };
+        $websocket = { saveData() {} };
+        $settings = new Proxy(payload.settings, { get: (t, p) => t[p], set: (t, p, v) => { t[p] = v; return true; } });
+        if (!$back) $dom.main.style.display = 'block';
+        $propEvent.didReceiveSettings(payload);
+    })()`);
+
+    const optionValues = (id) => pi.document.getElementById(id).children.map((o) => o.value);
+
+    assert.ok(optionValues('widget').includes('milestone'), 'milestone is offered as a widget');
+    assert.ok(optionValues('widget').includes('polling'), 'polling is offered as a widget');
+    assert.equal(pi.document.getElementById('widget').value, 'polling');
+    assert.equal(pi.document.getElementById('action').value, 'show-results');
+    assert.ok(optionValues('action').includes('hide-results'), 'polling lists its own result actions');
+    // The endpoint hint is the path; `show-results` has no :action segment to expand.
+    assert.match(pi.document.getElementById('endpoint-hint').textContent, /^GET \/api\/overlay\/polling\/control$/);
+    // Neither polling nor milestone actions declare `needs`, so both extra rows stay hidden.
+    assert.equal(pi.document.getElementById('row-amount').classList.contains('hidden'), true);
+    assert.equal(pi.document.getElementById('row-kind').classList.contains('hidden'), true);
+});
+
 test('generic: the broadcast action list is populated', () => {
     const pi = loadPropertyInspector('generic');
     pi.evaluate(`(() => {

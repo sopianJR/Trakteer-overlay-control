@@ -14,6 +14,10 @@
  *                                stream_key looked up the same way, any media type
  *                                accepted, and 200 with the hydrated transient item
  *                                even when no overlay is listening.
+ *   GET /api/overlay/{milestone,polling}/control
+ *                                stream_key (no `token` alias), `item` and `action` all
+ *                                required, no action whitelist, and 200 even when no
+ *                                overlay is listening.
  *
  * It exists so the plugin's request building can be exercised end to end without
  * touching production. Every received request is echoed on stdout as one JSON line
@@ -33,6 +37,16 @@ const TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const KNOWN_KEY = process.env.MOCK_KNOWN_KEY || 'mockstreamkey01';
 const ROOM_ONLINE = process.env.MOCK_ROOM_ONLINE !== '0';
 
+/**
+ * Routes that demand an `item` query param and read only `stream_key` (no `token`
+ * alias): trakteer-ws src/api/overlay/get-milestone-control.js and
+ * get-polling-control.js. They check stream_key → item → action → DB, in that order.
+ */
+const ITEM_ROUTES = new Set([
+    '/api/overlay/milestone/control',
+    '/api/overlay/polling/control',
+]);
+
 /** Flat lookup: path template → { widget, actions, send, keyFields, actionField } */
 function buildRouteTable() {
     const routes = new Map();
@@ -47,10 +61,16 @@ function buildRouteTable() {
                     send: action.send,
                     keyField: action.keyField,
                     actionField: action.actionField || null,
+                    // milestone/polling publish whatever action they are given.
+                    freeAction: widget.free_action === true,
+                    requiresItem: ITEM_ROUTES.has(action.path),
                     actions: new Set(),
                 });
             }
-            routes.get(key).actions.add(action.id);
+            // The whitelist holds what goes on the wire, which is `action.action`
+            // when set (several buttons can share one server action), else the id.
+            const wire = action.action === undefined ? action.id : action.action;
+            if (wire !== null) routes.get(key).actions.add(wire);
         }
     }
     return routes;
@@ -184,9 +204,15 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    const streamKey = fields[route.keyField] || fields.stream_key || fields.token;
+    const streamKey = route.requiresItem
+        ? fields.stream_key
+        : (fields[route.keyField] || fields.stream_key || fields.token);
     if (!streamKey) {
         json(res, 400, { error: 'missing_stream_key' });
+        return;
+    }
+    if (route.requiresItem && !fields.item) {
+        json(res, 400, { error: 'missing_item' });
         return;
     }
 
@@ -202,7 +228,7 @@ const server = http.createServer(async (req, res) => {
             json(res, 400, { error: 'missing_action' });
             return;
         }
-        if (!route.actions.has(action)) {
+        if (!route.freeAction && !route.actions.has(action)) {
             json(res, 400, { error: `invalid_action: must be one of ${[...route.actions].join(', ')}` });
             return;
         }
@@ -210,6 +236,13 @@ const server = http.createServer(async (req, res) => {
 
     if (streamKey !== KNOWN_KEY) {
         json(res, 401, { error: 'invalid_stream_key' });
+        return;
+    }
+
+    // milestone/polling answer 200 whether or not an overlay is subscribed (they never
+    // consult the room), and echo the request — stream key included — in `data`.
+    if (route.requiresItem) {
+        json(res, 200, { success: 'true', data: { stream_key: streamKey, item: fields.item, action } });
         return;
     }
 

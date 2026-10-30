@@ -108,8 +108,10 @@ const TEST_ALERT_WIDGET_TYPES = [
  *   path      literal path, or a path with ":action" substituted from `action`
  *   send      'query' | 'body' — where stream_key and the extras go
  *   keyField  name the endpoint uses for the stream key
- *   action    value put in the path or in the action field; null when the endpoint
- *             takes no action at all (e.g. goal/update-adjustment)
+ *   action    value put in the path or in the action field; defaults to `id`. Set it
+ *             when several buttons share one server action (milestone show/hide are
+ *             both `hide`); null when the endpoint takes no action at all (e.g.
+ *             goal/update-adjustment)
  *   actionField  field name for the action when it is not in the path
  *   extras    fixed extra fields merged into query/body
  *   needs     user-supplied fields this action requires, declared so the Property
@@ -262,6 +264,39 @@ const WIDGETS = {
             { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
             { id: 'flash-on', label: 'Flash on', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
             { id: 'flash-off', label: 'Flash off', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
+        ],
+    },
+    // milestone and polling: the server has no action whitelist (free_action), so the
+    // values below are the ones the overlay actually handles, read from trakteer-overslay
+    // src/hooks/useMilestoneWS.js:99-130 and usePollingWS.js:126-183, and from the
+    // dashboard's own Stream Deck list in src/constants/apiCatalog.js:105-152.
+    // `item` is mandatory on both routes; the server turns it into a boolean unless the
+    // action is result_visibility. Both routes read `stream_key` only (no `token` alias).
+    milestone: {
+        label: 'Milestone',
+        free_action: true,
+        actions: [
+            { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/milestone/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'true' } },
+            { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/milestone/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'hide', extras: { item: 'false' } },
+            { id: 'flash-on', label: 'Flash on', method: 'GET', path: '/api/overlay/milestone/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'flash', extras: { item: 'true' } },
+            { id: 'flash-off', label: 'Flash off', method: 'GET', path: '/api/overlay/milestone/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'flash', extras: { item: 'false' } },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/milestone/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'false' } },
+        ],
+    },
+    polling: {
+        label: 'Polling',
+        free_action: true,
+        actions: [
+            { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'true' } },
+            { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'hide', extras: { item: 'false' } },
+            { id: 'flash-on', label: 'Flash on', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'flash', extras: { item: 'true' } },
+            { id: 'flash-off', label: 'Flash off', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'flash', extras: { item: 'false' } },
+            // The overlay only tests `=== 'hidden'`, so 'immediate' (the catalog and the
+            // widget default) and the dashboard panel's 'visible' both show the results.
+            { id: 'hide-results', label: 'Hide results', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'result_visibility', extras: { item: 'hidden' } },
+            { id: 'show-results', label: 'Show results', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'result_visibility', extras: { item: 'immediate' } },
+            { id: 'refetch', label: 'Refresh data', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'true' } },
+            { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'false' } },
         ],
     },
     gacha: {
