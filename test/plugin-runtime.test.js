@@ -13,6 +13,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const { startHost } = require('./helpers/fake-host');
@@ -362,5 +363,122 @@ test('the log file never contains a token or stream key', async (t) => {
         const contents = fs.readFileSync(path.join(LOG_DIR, file), 'utf8');
         const offending = contents.split('\n').filter((l) => l.includes(UNIQUE_KEY));
         assert.deepEqual(offending, [], `credential found in log/${file}`);
+    }
+});
+
+// ── key icons ────────────────────────────────────────────────────────────────
+
+const ICON_DIR = path.resolve(__dirname, '..', 'id.trakteer.streamdock.sdPlugin', 'static', 'icons');
+
+/** What setImage must carry for an icon: its PNG file as a data URI. */
+function iconUri(name) {
+    return `data:image/png;base64,${fs.readFileSync(path.join(ICON_DIR, `${name}.png`)).toString('base64')}`;
+}
+
+function didReceive(action, context, settings) {
+    return { action, event: 'didReceiveSettings', context, device: 'fake-device', payload: { settings } };
+}
+
+/** The images the plugin has sent to one key, in order. */
+function imagesFor(host, context) {
+    return host.frames.filter((f) => f.event === 'setImage' && f.context === context).map((f) => f.payload.image);
+}
+
+test('willAppear puts the icon for the action on the key', async (t) => {
+    const host = await startHost();
+    t.after(() => host.stop());
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    host.send(willAppear(GENERIC, 'ctx-icon-play', { action: 'play', label: '', tokenId: KNOWN_KEY }));
+
+    const frame = await host.waitFor((f) => f.event === 'setImage' && f.context === 'ctx-icon-play');
+    assert.equal(frame.payload.image, iconUri('Play'));
+    assert.equal(frame.payload.target, 0, 'hardware and software');
+});
+
+test('each kind of button gets its own icon', async (t) => {
+    const host = await startHost();
+    t.after(() => host.stop());
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    host.send(willAppear(TESTALERT, 'ctx-icon-tts', { media: 'tts', streamKey: KNOWN_KEY }));
+    // A button saved by the newtip version: its media id is legacy, its icon must still resolve.
+    host.send(willAppear(TESTALERT, 'ctx-icon-legacy', { media: 'youtube', tokenId: KNOWN_KEY }));
+    host.send(willAppear(WIDGET, 'ctx-icon-polling', { widget: 'polling', action: 'hide-results', streamKey: KNOWN_KEY }));
+    host.send(willAppear(WIDGET, 'ctx-icon-timer', { widget: 'timer', action: 'add', streamKey: KNOWN_KEY }));
+
+    const wait = (ctx) => host.waitFor((f) => f.event === 'setImage' && f.context === ctx);
+    assert.equal((await wait('ctx-icon-tts')).payload.image, iconUri('SpeakerHigh'));
+    assert.equal((await wait('ctx-icon-legacy')).payload.image, iconUri('YoutubeLogo'));
+    assert.equal((await wait('ctx-icon-polling')).payload.image, iconUri('SubtitlesSlash'));
+    assert.equal((await wait('ctx-icon-timer')).payload.image, iconUri('Plus'));
+});
+
+test('an icon setting overrides the automatic one; one that is not shipped is ignored', async (t) => {
+    const host = await startHost();
+    t.after(() => host.stop());
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    host.send(willAppear(GENERIC, 'ctx-icon-own', { action: 'pause', icon: 'Star', tokenId: KNOWN_KEY }));
+    host.send(willAppear(GENERIC, 'ctx-icon-bad', { action: 'pause', icon: '../static/key', tokenId: KNOWN_KEY }));
+
+    const wait = (ctx) => host.waitFor((f) => f.event === 'setImage' && f.context === ctx);
+    assert.equal((await wait('ctx-icon-own')).payload.image, iconUri('Star'));
+    assert.equal((await wait('ctx-icon-bad')).payload.image, iconUri('Pause'), 'falls back to the action icon');
+});
+
+test('changing the icon setting sends a new image; unrelated edits do not resend it', async (t) => {
+    const host = await startHost();
+    t.after(() => host.stop());
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    const ctx = 'ctx-icon-change';
+    host.send(willAppear(GENERIC, ctx, { action: 'play', label: '', tokenId: KNOWN_KEY }));
+    await host.waitFor((f) => f.event === 'setImage' && f.context === ctx);
+
+    // Typing a label in the Property Inspector saves settings, with the icon unchanged...
+    host.send(didReceive(GENERIC, ctx, { action: 'play', label: 'Renamed', tokenId: KNOWN_KEY }));
+    // ...and only then is the icon picked.
+    host.send(didReceive(GENERIC, ctx, { action: 'play', label: 'Renamed', icon: 'Star', tokenId: KNOWN_KEY }));
+    await host.waitFor((f) => f.event === 'setImage' && f.context === ctx && f.payload.image === iconUri('Star'));
+
+    // Frames arrive in order, so a resend after the label edit would sit between these two.
+    assert.deepEqual(imagesFor(host, ctx), [iconUri('Play'), iconUri('Star')]);
+    assert.ok(
+        host.frames.some((f) => f.event === 'setTitle' && f.context === ctx && f.payload.title === 'Renamed'),
+        'the label edit itself still reached the key',
+    );
+});
+
+test('a key that reappears is given its icon again', async (t) => {
+    const host = await startHost();
+    t.after(() => host.stop());
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    const ctx = 'ctx-icon-again';
+    const settings = { action: 'next', label: '', tokenId: KNOWN_KEY };
+    host.send(willAppear(GENERIC, ctx, settings));
+    host.send({ action: GENERIC, event: 'willDisappear', context: ctx, device: 'fake-device', payload: { settings } });
+    host.send(willAppear(GENERIC, ctx, settings));
+    // A title change after the second willAppear marks the end of its handling.
+    host.send(didReceive(GENERIC, ctx, { ...settings, label: 'marker' }));
+    await host.waitFor((f) => f.event === 'setTitle' && f.context === ctx && f.payload.title === 'marker');
+
+    assert.deepEqual(imagesFor(host, ctx), [iconUri('SkipForward'), iconUri('SkipForward')]);
+});
+
+test('the log never contains an icon image', async (t) => {
+    const LOG_DIR = path.resolve(__dirname, '..', 'id.trakteer.streamdock.sdPlugin', 'plugin', 'log');
+    const host = await startHost();
+    t.after(() => host.stop());
+    await host.waitFor((f) => f.event === 'registerPlugin');
+
+    host.send(willAppear(GENERIC, 'ctx-icon-log', { action: 'play', label: '', tokenId: KNOWN_KEY }));
+    await host.waitFor((f) => f.event === 'setImage' && f.context === 'ctx-icon-log');
+    await new Promise((r) => setTimeout(r, 400));
+
+    for (const file of fs.existsSync(LOG_DIR) ? fs.readdirSync(LOG_DIR) : []) {
+        const contents = fs.readFileSync(path.join(LOG_DIR, file), 'utf8');
+        assert.ok(!contents.includes('data:image/png;base64'), `an image data URI was logged in log/${file}`);
     }
 });

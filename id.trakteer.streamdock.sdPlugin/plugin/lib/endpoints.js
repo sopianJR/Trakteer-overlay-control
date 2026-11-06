@@ -55,14 +55,14 @@ const BROADCAST_ACTIONS = [
  * for. `LEGACY_TEST_ALERT_MEDIA` below translates settings saved by that version.
  */
 const TEST_ALERT_MEDIA = [
-    { id: 'notification', label: 'Text only' },
-    { id: 'tts', label: 'TTS' },
-    { id: 'media-share-youtube', label: 'YouTube' },
-    { id: 'media-share-tiktok', label: 'TikTok' },
-    { id: 'media-share-instagram', label: 'Instagram reel' },
-    { id: 'voice-note', label: 'Voice note' },
-    { id: 'gambar', label: 'Image' },
-    { id: 'gif', label: 'GIF' },
+    { id: 'notification', label: 'Text only', icon: 'BellRinging' },
+    { id: 'tts', label: 'TTS', icon: 'SpeakerHigh' },
+    { id: 'media-share-youtube', label: 'YouTube', icon: 'YoutubeLogo' },
+    { id: 'media-share-tiktok', label: 'TikTok', icon: 'TiktokLogo' },
+    { id: 'media-share-instagram', label: 'Instagram reel', icon: 'InstagramLogo' },
+    { id: 'voice-note', label: 'Voice note', icon: 'Microphone' },
+    { id: 'gambar', label: 'Image', icon: 'Image' },
+    { id: 'gif', label: 'GIF', icon: 'Gif' },
 ];
 
 /** Old newtip media id → its equivalent on the real test route. */
@@ -116,6 +116,8 @@ const TEST_ALERT_WIDGET_TYPES = [
  *   extras    fixed extra fields merged into query/body
  *   needs     user-supplied fields this action requires, declared so the Property
  *             Inspector can ask for them and the plugin can refuse early
+ *   icon      Phosphor icon name for the key, when the shared ACTION_ICONS entry for
+ *             the action id (or the widget's own `icon`) would be wrong
  *
  * `free_action: true` on a widget means the server accepts any non-empty action
  * string (milestone, polling); the listed ones are what the code publishes.
@@ -123,6 +125,7 @@ const TEST_ALERT_WIDGET_TYPES = [
 const WIDGETS = {
     'alert-queue': {
         label: 'Alert box / queue',
+        icon: 'Megaphone',
         actions: [
             { id: 'play', label: 'Play', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
             { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/alert-queue/control/:action', send: 'query', keyField: 'token' },
@@ -145,11 +148,13 @@ const WIDGETS = {
                 send: 'query',
                 keyField: 'token',
                 extras: { widget_type: 'alert-box' },
+                icon: media.icon,
             })),
         ],
     },
     soundboard: {
         label: 'Soundboard (overlay)',
+        icon: 'MusicNotes',
         actions: [
             { id: 'toggle_hide', label: 'Toggle hide', method: 'GET', path: '/api/overlay/soundboard/control/:action', send: 'query', keyField: 'token' },
             { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/soundboard/control/:action', send: 'query', keyField: 'token' },
@@ -157,6 +162,7 @@ const WIDGETS = {
     },
     'soundboard-queue': {
         label: 'Soundboard queue',
+        icon: 'MusicNotes',
         actions: [
             { id: 'play', label: 'Play', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
             { id: 'pause', label: 'Pause', method: 'POST', path: '/api/overlay/soundboard-queue/control', send: 'body', keyField: 'stream_key', actionField: 'action' },
@@ -169,6 +175,7 @@ const WIDGETS = {
     },
     'musicbox-queue': {
         label: 'Musicbox queue',
+        icon: 'Playlist',
         actions: [
             { id: 'play', label: 'Play', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
             { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/musicbox-queue/control/:action', send: 'query', keyField: 'token' },
@@ -182,6 +189,7 @@ const WIDGETS = {
     },
     'mabar-queue': {
         label: 'Mabar queue',
+        icon: 'GameController',
         actions: [
             { id: 'lock', label: 'Lock', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
             { id: 'unlock', label: 'Unlock', method: 'GET', path: '/api/overlay/mabar-queue/control/:action', send: 'query', keyField: 'token' },
@@ -193,6 +201,7 @@ const WIDGETS = {
     },
     'qr-code': {
         label: 'QR code',
+        icon: 'QrCode',
         actions: [
             { id: 'toggle_hide', label: 'Toggle hide', method: 'GET', path: '/api/overlay/qr-code/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'qr-code' } },
             { id: 'toggle_open_close', label: 'Toggle open/close', method: 'GET', path: '/api/overlay/qr-code/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'qr-code' } },
@@ -202,6 +211,7 @@ const WIDGETS = {
     },
     activity: {
         label: 'Activity feed',
+        icon: 'ListBullets',
         actions: [
             { id: 'toggle_pause', label: 'Toggle pause', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
             { id: 'toggle_hide', label: 'Toggle hide', method: 'GET', path: '/api/overlay/activity/control/:action', send: 'query', keyField: 'token', extras: { widget_id: 'activity' } },
@@ -215,6 +225,7 @@ const WIDGETS = {
     },
     timer: {
         label: 'Timer',
+        icon: 'Timer',
         actions: [
             { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
             { id: 'resume', label: 'Resume', method: 'GET', path: '/api/overlay/timer/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
@@ -233,6 +244,7 @@ const WIDGETS = {
     },
     'running-text': {
         label: 'Running text',
+        icon: 'ArrowRight',
         actions: [
             { id: 'pause', label: 'Pause', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
             { id: 'resume', label: 'Resume', method: 'GET', path: '/api/overlay/running-text/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
@@ -246,6 +258,7 @@ const WIDGETS = {
     },
     leaderboard: {
         label: 'Leaderboard',
+        icon: 'Trophy',
         actions: [
             { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
             { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/leaderboard/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
@@ -259,6 +272,7 @@ const WIDGETS = {
     },
     goal: {
         label: 'Goal',
+        icon: 'TrendUp',
         actions: [
             { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
             { id: 'show', label: 'Show', method: 'GET', path: '/api/overlay/goal/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
@@ -274,6 +288,7 @@ const WIDGETS = {
     // action is result_visibility. Both routes read `stream_key` only (no `token` alias).
     milestone: {
         label: 'Milestone',
+        icon: 'Medal',
         free_action: true,
         actions: [
             { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/milestone/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'true' } },
@@ -285,6 +300,7 @@ const WIDGETS = {
     },
     polling: {
         label: 'Polling',
+        icon: 'ChartBar',
         free_action: true,
         actions: [
             { id: 'hide', label: 'Hide', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'true' } },
@@ -293,14 +309,15 @@ const WIDGETS = {
             { id: 'flash-off', label: 'Flash off', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'flash', extras: { item: 'false' } },
             // The overlay only tests `=== 'hidden'`, so 'immediate' (the catalog and the
             // widget default) and the dashboard panel's 'visible' both show the results.
-            { id: 'hide-results', label: 'Hide results', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'result_visibility', extras: { item: 'hidden' } },
-            { id: 'show-results', label: 'Show results', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'result_visibility', extras: { item: 'immediate' } },
+            { id: 'hide-results', label: 'Hide results', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'result_visibility', extras: { item: 'hidden' }, icon: 'SubtitlesSlash' },
+            { id: 'show-results', label: 'Show results', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', action: 'result_visibility', extras: { item: 'immediate' }, icon: 'Subtitles' },
             { id: 'refetch', label: 'Refresh data', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'true' } },
             { id: 'restart', label: 'Restart widget', method: 'GET', path: '/api/overlay/polling/control', send: 'query', keyField: 'stream_key', actionField: 'action', extras: { item: 'false' } },
         ],
     },
     gacha: {
         label: 'Gacha',
+        icon: 'Gift',
         actions: [
             { id: 'spin', label: 'Spin', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
             { id: 'close_result', label: 'Close result', method: 'GET', path: '/api/overlay/gacha/control', send: 'query', keyField: 'stream_key', actionField: 'action' },
@@ -331,6 +348,127 @@ function findAction(widgetId, actionId) {
     return widget.actions.find((a) => a.id === actionId) || null;
 }
 
+/**
+ * Key icons, named after Phosphor icons (the set the Trakteer dashboard uses,
+ * @phosphor-icons/react). tools/make-key-icons.js renders each name returned by
+ * iconNames() to static/icons/<Name>.png and the plugin sends that PNG to the key.
+ *
+ * Which icon a key gets, first hit wins:
+ *   1. the button's own `icon` setting, when it names an icon we ship
+ *   2. the action's `icon` field
+ *   3. ACTION_ICONS[action id]
+ *   4. the widget's `icon` (the broadcast action falls back to Megaphone)
+ */
+const ACTION_ICONS = {
+    play: 'Play',
+    pause: 'Pause',
+    next: 'SkipForward',
+    prev: 'SkipBack',
+    hold: 'PauseCircle',
+    resume: 'PlayCircle',
+    autoplay: 'Repeat',
+    restart: 'ArrowClockwise',
+    widget_reset: 'ArrowClockwise',
+    refresh: 'ArrowsClockwise',
+    refetch: 'ArrowsClockwise',
+    clear: 'Trash',
+    clear_activity: 'Trash',
+    remove_all_queued: 'Trash',
+    hide: 'EyeSlash',
+    toggle_hide: 'EyeSlash',
+    show: 'Eye',
+    flash: 'Lightning',
+    'flash-on': 'Lightning',
+    toggle_flash: 'Lightning',
+    unflash: 'LightningSlash',
+    'flash-off': 'LightningSlash',
+    mute: 'SpeakerSlash',
+    unmute: 'SpeakerHigh',
+    lock: 'Lock',
+    unlock: 'LockOpen',
+    add: 'Plus',
+    subtract: 'Minus',
+    set: 'PencilSimple',
+    'censor-text': 'TextStrikethrough',
+    'censor-text-alert': 'TextStrikethrough',
+    'censor-media': 'ImageBroken',
+    'censor-media-share': 'ImageBroken',
+    scroll_up: 'ArrowUp',
+    scroll_down: 'ArrowDown',
+    reset_scroll: 'ArrowLineUp',
+    test_event: 'Flask',
+    complete_all_lobby: 'CheckCircle',
+};
+
+/** Offered in the Property Inspector only; no action defaults to these. */
+const EXTRA_ICONS = ['Star', 'Heart', 'Fire', 'Confetti', 'Coffee', 'Crown', 'Bell'];
+
+const BROADCAST_FALLBACK_ICON = 'Megaphone';
+
+/** Every icon a key can show, sorted so the generated set and its listing are stable. */
+function iconNames() {
+    const names = new Set([BROADCAST_FALLBACK_ICON, ...EXTRA_ICONS, ...Object.values(ACTION_ICONS)]);
+    for (const media of TEST_ALERT_MEDIA) names.add(media.icon);
+    for (const widget of Object.values(WIDGETS)) {
+        names.add(widget.icon);
+        for (const action of widget.actions) {
+            if (action.icon) names.add(action.icon);
+        }
+    }
+    return [...names].sort();
+}
+
+const ICON_SET = new Set(iconNames());
+
+/** "SkipForward" → "Skip forward". */
+function iconLabel(name) {
+    const spaced = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/** The Property Inspector's icon dropdown, derived so there is no second list to keep. */
+const ICON_CHOICES = iconNames().map((id) => ({ id, label: iconLabel(id) }));
+
+/** An override counts only when it names an icon we ship; anything else is ignored. */
+function validIcon(name) {
+    return typeof name === 'string' && ICON_SET.has(name) ? name : null;
+}
+
+/** Own-property lookup: a setting such as "constructor" must not hit Object.prototype. */
+function actionIcon(actionId) {
+    return Object.prototype.hasOwnProperty.call(ACTION_ICONS, actionId) ? ACTION_ICONS[actionId] : null;
+}
+
+/**
+ * @param {string} widgetId
+ * @param {string} actionId
+ * @param {string} [override] the button's `icon` setting; '' or unknown means automatic
+ * @returns {string|null} a Phosphor icon name, or null when the widget is unknown
+ */
+function resolveWidgetIcon(widgetId, actionId, override) {
+    const widget = WIDGETS[widgetId];
+    const action = findAction(widgetId, actionId);
+    return validIcon(override)
+        || (action && action.icon)
+        || actionIcon(actionId)
+        || (widget && widget.icon)
+        || null;
+}
+
+/** Icon for the generic broadcast action (play, pause, next, censor…). */
+function resolveBroadcastIcon(actionId, override) {
+    return validIcon(override) || actionIcon(actionId) || BROADCAST_FALLBACK_ICON;
+}
+
+/**
+ * Icon for the test alert action. The media id goes through resolveTestAlertMedia, so a
+ * button saved by the newtip version (media `youtube`, `null`…) still gets its icon.
+ */
+function resolveTestAlertIcon(media, override) {
+    const resolved = resolveTestAlertMedia(media);
+    return validIcon(override) || TEST_ALERT_MEDIA.find((m) => m.id === resolved).icon;
+}
+
 const registry = {
     BROADCAST_ACTIONS,
     TEST_ALERT_MEDIA,
@@ -340,6 +478,13 @@ const registry = {
     WIDGETS,
     widgetIds,
     findAction,
+    ACTION_ICONS,
+    EXTRA_ICONS,
+    ICON_CHOICES,
+    iconNames,
+    resolveWidgetIcon,
+    resolveBroadcastIcon,
+    resolveTestAlertIcon,
 };
 
 // Loaded two ways: `require`d by the Node plugin process, and <script src>'d by the

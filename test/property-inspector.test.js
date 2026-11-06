@@ -183,6 +183,32 @@ test('widget: polling and milestone are selectable and list their own actions', 
     assert.equal(pi.document.getElementById('row-kind').classList.contains('hidden'), true);
 });
 
+for (const page of PAGES) {
+    test(`${page}: the icon select lists Auto, then every shipped icon, and restores a stored choice`, () => {
+        const registry = require('../id.trakteer.streamdock.sdPlugin/plugin/lib/endpoints');
+        const show = (settings) => `(() => {
+            const payload = { settings: ${JSON.stringify(settings)} };
+            $websocket = { saveData() {} };
+            $settings = new Proxy(payload.settings, { get: (t, p) => t[p], set: (t, p, v) => { t[p] = v; return true; } });
+            if (!$back) $dom.main.style.display = 'block';
+            $propEvent.didReceiveSettings(payload);
+        })()`;
+
+        const stored = loadPropertyInspector(page);
+        stored.evaluate(show({ icon: 'Star' }));
+        const select = stored.document.getElementById('icon');
+        assert.ok(select, `${page} has an icon select`);
+        assert.equal(select.children[0].value, '', 'Auto comes first and means "follow the action"');
+        assert.equal(select.children[0].textContent, 'Auto');
+        assert.deepEqual(select.children.slice(1).map((o) => o.value), registry.iconNames());
+        assert.equal(select.value, 'Star', 'a stored choice is shown');
+
+        const fresh = loadPropertyInspector(page);
+        fresh.evaluate(show({}));
+        assert.equal(fresh.document.getElementById('icon').value, '', 'no stored choice means Auto');
+    });
+}
+
 test('generic: the broadcast action list is populated', () => {
     const pi = loadPropertyInspector('generic');
     pi.evaluate(`(() => {
@@ -206,7 +232,8 @@ test('endpoints.js exposes the registry only through a namespace', () => {
     assert.equal(pi.evaluate('typeof window.TRAKTEER_ENDPOINTS.findAction'), 'function');
     // ...and NOT as a bare binding in the page's shared scope, which is what made a
     // PI script's own `const WIDGETS` fatal.
-    for (const name of ['WIDGETS', 'TEST_ALERT_MEDIA', 'TEST_ALERT_WIDGET_TYPES', 'BROADCAST_ACTIONS', 'LEGACY_TEST_ALERT_MEDIA', 'findAction', 'resolveTestAlertMedia', 'widgetIds', 'registry']) {
+    for (const name of ['WIDGETS', 'TEST_ALERT_MEDIA', 'TEST_ALERT_WIDGET_TYPES', 'BROADCAST_ACTIONS', 'LEGACY_TEST_ALERT_MEDIA', 'findAction', 'resolveTestAlertMedia', 'widgetIds', 'registry',
+        'ACTION_ICONS', 'EXTRA_ICONS', 'ICON_CHOICES', 'iconNames', 'resolveWidgetIcon', 'resolveBroadcastIcon', 'resolveTestAlertIcon']) {
         assert.equal(
             pi.evaluate(`typeof ${name}`),
             'undefined',

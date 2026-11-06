@@ -147,6 +147,26 @@ Semuanya ekosistem HotSpot/StreamDock, jadi plugin `.sdPlugin` kita juga jalan:
 - Versi minimum Stream Dock app yang dibutuhkan masing-masing merek rebrand
   (Pressplay dll.) — installer yang mereka tautkan adalah build generik Mirabox.
 
+## Gambar tombol (`setImage`)
+
+Riset: 2026-10-30, dari dokumentasi SDK Stream Dock.
+
+- **[FAKTA]** Event `setImage` menerima `image` berupa data URI base64 (contoh di dokumen:
+  `data:image/png;base64,…`, `jpg`, `gif`), dengan `target` (0 hardware dan software, 1 hanya
+  hardware, 2 hanya software) dan `state` opsional. Dokumen yang sama menulis "This API also
+  accepts SVG images" dengan contoh `data:image/svg+xml;charset=utf8,<svg></svg>`.
+  https://sdk.key123.vip/en/guide/events-sent.html
+- **[FAKTA]** Panduan gaya SDK: ikon tombol 128 x 128 px, ikon action 40 x 40, ikon kategori
+  48 x 48, ikon plugin 128 x 128; "Use vector images whenever possible". Resolusi layar tiap
+  perangkat tidak disebut. https://sdk.key123.vip/en/guide/style-guide.html
+- **[TIDAK DITEMUKAN BUKTI]** Laporan bahwa SVG data URI tampil hitam di perangkat StreamDock.
+  Laporan ini dikutip di README dan di `plugin/lib/feedback.js`, tadinya dengan rujukan ke
+  dokumen ini, padahal dokumen ini tidak memuatnya. Tidak ada sumber untuk klaim itu, ia
+  bertentangan dengan dokumentasi SDK di atas, dan belum diuji di perangkat.
+- **Keputusan:** plugin memakai PNG (`static/icons/`, dibuat oleh `tools/make-key-icons.js`)
+  karena aman di kedua kemungkinan. Kalau kelak diuji di perangkat dan SVG ternyata tampil
+  benar, jalur SVG bisa menggantikannya tanpa langkah rasterisasi.
+
 ## Implikasi untuk plugin Trakteer
 1. Satu build `.sdPlugin` (manifest `Software.MinimumVersion: "2.9"`) menjangkau
    Mirabox + Ajazz + Pressplay + VSDinside + Fifine + rebrand lain. **FAKTA**

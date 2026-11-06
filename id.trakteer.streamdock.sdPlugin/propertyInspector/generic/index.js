@@ -11,10 +11,12 @@ const FIELDS = [
     { id: 'action', key: 'action', default: 'next' },
     { id: 'tokenId', key: 'tokenId', default: '' },
     { id: 'label', key: 'label', default: '' },
+    { id: 'icon', key: 'icon', default: '' },
     { id: 'baseUrl', key: 'baseUrl', default: 'https://ws.trakteer.id' },
 ];
 
 fillSelect('action', window.TRAKTEER_ENDPOINTS.BROADCAST_ACTIONS);
+fillIconSelect('icon', window.TRAKTEER_ENDPOINTS.ICON_CHOICES);
 
 const binding = bindFields(FIELDS);
 

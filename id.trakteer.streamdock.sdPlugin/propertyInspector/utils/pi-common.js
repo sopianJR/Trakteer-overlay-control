@@ -69,6 +69,16 @@ function fillSelect(id, items, selected) {
     }
 }
 
+/**
+ * Fill the icon <select>: "Auto" first (empty value, the icon follows the action), then
+ * every icon the plugin ships.
+ * @param {string} id select element id
+ * @param {Array<{ id: string, label: string }>} choices the registry's ICON_CHOICES
+ */
+function fillIconSelect(id, choices) {
+    fillSelect(id, [{ id: '', label: 'Auto' }, ...choices]);
+}
+
 /** Show or hide a row by element id. */
 function toggleRow(id, visible) {
     const el = document.getElementById(id);

@@ -19,11 +19,13 @@ const FIELDS = [
     { id: 'kind', key: 'kind', default: '' },
     { id: 'streamKey', key: 'streamKey', default: '' },
     { id: 'label', key: 'label', default: '' },
+    { id: 'icon', key: 'icon', default: '' },
     { id: 'baseUrl', key: 'baseUrl', default: 'https://ws.trakteer.id' },
 ];
 
 // Widget list is fixed; the action list follows the selected widget.
 fillSelect('widget', Object.entries($endpoints.WIDGETS).map(([id, w]) => ({ id, label: w.label })));
+fillIconSelect('icon', $endpoints.ICON_CHOICES);
 
 /** Repopulate the action select for the chosen widget and show only the extras it needs. */
 function refreshDependentUi(settings) {

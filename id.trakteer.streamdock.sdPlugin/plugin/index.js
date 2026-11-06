@@ -7,6 +7,8 @@
  *   widget    — the per-widget control endpoints (stream_key based)
  *
  * All request building lives in lib/; this file only wires StreamDock events to it.
+ * Each key also shows a Phosphor icon (lib/endpoints.js picks the name, lib/icons.js
+ * supplies the PNG), set when the key appears and when its icon setting changes.
  * Credentials are read from each action's own settings and never written to disk
  * by this plugin.
  */
@@ -15,7 +17,8 @@
 
 const { Plugins, Actions, log } = require('./utils/plugin');
 const { DEFAULT_BASE_URL, buildBroadcastRequest, buildWidgetRequest, buildTestAlertRequest, sendRequest, redactUrl } = require('./lib/trakteer-api');
-const { findAction } = require('./lib/endpoints');
+const { findAction, resolveWidgetIcon, resolveBroadcastIcon, resolveTestAlertIcon } = require('./lib/endpoints');
+const { iconDataUri } = require('./lib/icons');
 const { reportResult, clearTimer, setTitle } = require('./lib/feedback');
 
 const plugin = new Plugins('trakteer');
@@ -24,6 +27,27 @@ const plugin = new Plugins('trakteer');
 function restingLabel(settings, fallback) {
     const custom = (settings && settings.label) || '';
     return custom || fallback || '';
+}
+
+/** Icon last sent to each key, so editing a label in the Property Inspector does not resend the image. */
+const shownIcon = new Map();
+
+/**
+ * Put an icon on a key.
+ * @param {string} context action context
+ * @param {string|null} name Phosphor icon name from one of the registry's resolve*Icon
+ * @param {boolean} force send even when the key already shows it (a key that has just appeared)
+ */
+function applyIcon(context, name, force) {
+    if (!force && shownIcon.get(context) === name) return;
+    const uri = iconDataUri(name);
+    if (!uri) {
+        // Keep the manifest image rather than blank the key.
+        log.warn('icon-missing', { icon: name });
+        return;
+    }
+    shownIcon.set(context, name);
+    plugin.setImage(context, uri);
 }
 
 /** Shared press handler: build → send → report. */
@@ -54,17 +78,20 @@ async function press({ context, settings, build, label }) {
 
 // ── Action: generic broadcast ────────────────────────────────────────────────
 plugin.generic = new Actions({
-    default: { baseUrl: DEFAULT_BASE_URL, action: 'next', tokenId: '', label: '' },
+    default: { baseUrl: DEFAULT_BASE_URL, action: 'next', tokenId: '', label: '', icon: '' },
     _willAppear({ context }) {
         const settings = plugin.generic.data[context] || {};
         setTitle(plugin, context, restingLabel(settings, settings.action));
+        applyIcon(context, resolveBroadcastIcon(settings.action, settings.icon), true);
     },
     _didReceiveSettings({ context }) {
         const settings = plugin.generic.data[context] || {};
         setTitle(plugin, context, restingLabel(settings, settings.action));
+        applyIcon(context, resolveBroadcastIcon(settings.action, settings.icon), false);
     },
     _willDisappear({ context }) {
         clearTimer(context);
+        shownIcon.delete(context);
     },
     keyUp({ context }) {
         const settings = plugin.generic.data[context] || {};
@@ -89,17 +116,20 @@ plugin.generic = new Actions({
 // in OBS. `streamKey` is preferred; `tokenId` is still read so buttons configured
 // before this change keep working without being reconfigured.
 plugin.testalert = new Actions({
-    default: { baseUrl: DEFAULT_BASE_URL, media: 'notification', quantity: 1, streamKey: '', widgetType: 'alert-box', label: 'Test' },
+    default: { baseUrl: DEFAULT_BASE_URL, media: 'notification', quantity: 1, streamKey: '', widgetType: 'alert-box', label: 'Test', icon: '' },
     _willAppear({ context }) {
         const settings = plugin.testalert.data[context] || {};
         setTitle(plugin, context, restingLabel(settings, 'Test'));
+        applyIcon(context, resolveTestAlertIcon(settings.media, settings.icon), true);
     },
     _didReceiveSettings({ context }) {
         const settings = plugin.testalert.data[context] || {};
         setTitle(plugin, context, restingLabel(settings, 'Test'));
+        applyIcon(context, resolveTestAlertIcon(settings.media, settings.icon), false);
     },
     _willDisappear({ context }) {
         clearTimer(context);
+        shownIcon.delete(context);
     },
     keyUp({ context }) {
         const settings = plugin.testalert.data[context] || {};
@@ -122,17 +152,20 @@ plugin.testalert = new Actions({
 
 // ── Action: per-widget control ───────────────────────────────────────────────
 plugin.widget = new Actions({
-    default: { baseUrl: DEFAULT_BASE_URL, widget: 'alert-queue', action: 'play', streamKey: '', amount: '', kind: '', label: '' },
+    default: { baseUrl: DEFAULT_BASE_URL, widget: 'alert-queue', action: 'play', streamKey: '', amount: '', kind: '', label: '', icon: '' },
     _willAppear({ context }) {
         const settings = plugin.widget.data[context] || {};
         setTitle(plugin, context, widgetLabel(settings));
+        applyIcon(context, resolveWidgetIcon(settings.widget, settings.action, settings.icon), true);
     },
     _didReceiveSettings({ context }) {
         const settings = plugin.widget.data[context] || {};
         setTitle(plugin, context, widgetLabel(settings));
+        applyIcon(context, resolveWidgetIcon(settings.widget, settings.action, settings.icon), false);
     },
     _willDisappear({ context }) {
         clearTimer(context);
+        shownIcon.delete(context);
     },
     keyUp({ context }) {
         const settings = plugin.widget.data[context] || {};

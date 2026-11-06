@@ -11,14 +11,17 @@ id.trakteer.streamdock.sdPlugin/   paket plugin (ini yang dipasang)
     lib/endpoints.js               registry endpoint trakteer-ws
     lib/trakteer-api.js            bangun + kirim request
     lib/feedback.js                umpan balik tombol
+    lib/icons.js                   baca PNG ikon tombol (static/icons) untuk setImage
     utils/plugin.js                SDK Mirabox (SDNodeJsSDKV2, tidak dimodifikasi)
   propertyInspector/               UI pengaturan per tombol
-  static/                          ikon PNG
+  static/                          ikon plugin + key.png
+  static/icons/                    ikon tombol (Phosphor, PNG 144x144, dibuat tools/make-key-icons.js)
 tools/mock-ws-server.js            mock trakteer-ws untuk uji lokal
 tools/check-manifest.js            cek manifest/paket
 tools/check-property-inspectors.js cek halaman PI dalam satu scope bersama
-tools/make-icons.js                generate ikon PNG
-test/                              86 test (unit + integrasi + runtime + PI)
+tools/make-icons.js                ikon plugin/aksi dari logo (tools/assets) + key.png
+tools/make-key-icons.js            render ikon Phosphor jadi PNG tombol (npm run icons)
+test/                              112 test (unit + integrasi + runtime + PI + ikon)
 docs/endpoint-map.md               peta endpoint kontrol trakteer-ws
 docs/device-compatibility.md       riset perangkat yang didukung
 ```
@@ -89,6 +92,28 @@ aktif), `bad stream key` (401), isi error server untuk 400, `payload too large`
 
 Token/stream key yang salah format ditolak sebelum request dikirim.
 
+## Ikon tombol
+
+Setiap tombol tampil dengan ikon Phosphor, paket ikon yang sama dengan dashboard Trakteer
+(`@phosphor-icons/react` 2.1.7). Ikon dipilih otomatis dari aksinya: Play untuk play, Megaphone
+untuk alert box, Timer untuk widget timer, dan seterusnya. Aturannya ada di
+`plugin/lib/endpoints.js`: ikon widget, `ACTION_ICONS` untuk id aksi yang dipakai bersama, dan
+`icon` pada aksi tertentu. Di Property Inspector, field **Icon** bisa menimpanya; **Auto**
+mengikuti aksi.
+
+Ikonnya PNG 144x144 (bobot bold, putih di atas gradien merah logo Trakteer, `#be1e2d` ke
+`#db2935`, sama dengan `key.png`) di
+`static/icons/`, dikirim ke tombol lewat `setImage`. PNG-nya sudah ada di repo, jadi memasang
+plugin tidak butuh langkah tambahan. Untuk membuat ulang, misalnya setelah menambah ikon di
+registry atau mengubah gaya di `tools/make-key-icons.js`:
+
+```bash
+npm install     # di root repo; memasang devDependency (Phosphor dan resvg), bukan dependency plugin
+npm run icons
+```
+
+Ikon Phosphor berlisensi MIT; pemberitahuannya ada di `static/icons/LICENSE.txt`.
+
 ## Cara uji tanpa perangkat
 
 Semua verifikasi di bawah berjalan di WSL/Linux, tanpa StreamDock dan tanpa
@@ -104,7 +129,7 @@ node tools/check-manifest.js
 # node --check tidak bisa, karena ia hanya melihat satu file sekaligus.
 node tools/check-property-inspectors.js
 
-# 86 test: unit (bangun request, wrap judul, redaksi log) + integrasi (HTTP ke mock)
+# 112 test: unit (bangun request, wrap judul, redaksi log, pilihan ikon) + integrasi (HTTP ke mock)
 #          + runtime (proses plugin nyata lewat fake host StreamDock)
 #          + Property Inspector (scope bersama, migrasi setting legacy)
 node --test test/
@@ -140,6 +165,9 @@ kalau tidak server menjawab `room_not_found`.
 - Apakah versi Stream Dock AJAZZ 1.0/2.0 memenuhi `Software.MinimumVersion`
   `3.10.188.226` di manifest. Kalau plugin tidak muncul di perangkat Ajazz,
   turunkan nilai itu ke `2.9` dan uji ulang.
+- Tampilan ikon di tombol asli: apakah judul menimpa ikon, ukuran 144 px terhadap 128 px yang
+  disarankan SDK, dan apakah ikon tetap terlihat setelah overlay centang/silang. `ICON_SIZE` dan
+  `ICON_TOP` di `tools/make-key-icons.js` disiapkan untuk disetel setelah dicoba di perangkat.
 - Perilaku terhadap server produksi (butuh stream key asli).
 - Efek tombol **milestone** dan **polling** di overlay yang terbuka. Server kedua
   endpoint itu tidak punya whitelist, jadi nilai `action`/`item`-nya dibaca dari source
@@ -154,7 +182,9 @@ kalau tidak server menjawab `room_not_found`.
   `setTitle` di SDK (`utils/plugin.js`) memulai akumulator pada `null` lalu
   mengonkatenasi, sehingga judul ter-wrap keluar dengan awalan literal `null`.
   File SDK dibiarkan apa adanya; jalur itu tidak dipakai.
-- Status tidak dirender sebagai SVG via `setImage`: SVG data URI dilaporkan tampil
-  hitam di perangkat StreamDock.
+- Gambar tombol memakai PNG lewat `setImage`, bukan SVG. Dokumentasi SDK menyebut SVG
+  diterima, tetapi repo ini mencatat laporan SVG data URI tampil hitam di perangkat. Laporan
+  itu belum punya sumber dan belum diuji, jadi PNG dipilih karena aman di kedua kemungkinan
+  (lihat `docs/device-compatibility.md`).
 - `lib/endpoints.js` dimuat dua cara: `require` oleh proses plugin dan `<script src>`
   oleh Property Inspector, supaya daftar action hanya punya satu sumber.

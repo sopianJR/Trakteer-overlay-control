@@ -9,6 +9,11 @@
     "check": "node tools/check-manifest.js",
     "check:pi": "node tools/check-property-inspectors.js",
     "mock": "node tools/mock-ws-server.js",
+    "icons": "node tools/make-key-icons.js",
     "verify": "npm run check && npm run check:pi && npm test"
+  },
+  "devDependencies": {
+    "@phosphor-icons/react": "2.1.7",
+    "@resvg/resvg-js": "2.6.2"
   }
 }

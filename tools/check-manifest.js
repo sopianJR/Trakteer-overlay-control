@@ -150,6 +150,7 @@ group('plugin sources parse', () => {
         'plugin/lib/endpoints.js',
         'plugin/lib/trakteer-api.js',
         'plugin/lib/feedback.js',
+        'plugin/lib/icons.js',
     ];
     for (const file of sources) {
         const full = path.join(PLUGIN_DIR, file);

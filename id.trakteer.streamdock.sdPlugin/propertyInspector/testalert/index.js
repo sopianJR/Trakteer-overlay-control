@@ -18,11 +18,13 @@ const FIELDS = [
     { id: 'quantity', key: 'quantity', default: 1, type: 'number' },
     { id: 'streamKey', key: 'streamKey', default: '' },
     { id: 'label', key: 'label', default: 'Test' },
+    { id: 'icon', key: 'icon', default: '' },
     { id: 'baseUrl', key: 'baseUrl', default: 'https://ws.trakteer.id' },
 ];
 
 fillSelect('media', $endpoints.TEST_ALERT_MEDIA);
 fillSelect('widgetType', $endpoints.TEST_ALERT_WIDGET_TYPES);
+fillIconSelect('icon', $endpoints.ICON_CHOICES);
 
 const binding = bindFields(FIELDS);
 

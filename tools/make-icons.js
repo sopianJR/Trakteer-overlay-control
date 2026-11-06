@@ -1,9 +1,7 @@
 /**
- * Generate the plugin's PNG icons with no image library.
- *
- * Writes real, valid PNGs (zlib stored blocks + CRC) so the manifest never points at
- * a placeholder. Flat Trakteer-orange tiles with a darker border; replace them with
- * proper artwork from the design repo when that exists.
+ * Generate the plugin's own PNG icons: the plugin and action icons shown in the
+ * Stream Dock action list (the Trakteer logo, scaled) and key.png (a plain tile in the
+ * logo's red gradient, drawn here with no image library: valid PNGs from zlib + CRC).
  *
  * Usage: node tools/make-icons.js
  */
@@ -72,24 +70,45 @@ function crc32(buf) {
     return (crc ^ -1) >>> 0;
 }
 
-/** Orange tile with a darker 4px border. */
-function tile(size, inner, border) {
+/** Tile filled with the Trakteer logo gradient, running diagonally from `from` to `to`. */
+function tile(size, from, to) {
     return png(size, size, (x, y) => {
-        const edge = 4;
-        const onBorder = x < edge || y < edge || x >= size - edge || y >= size - edge;
-        return onBorder ? border : inner;
+        const t = (x + y) / (2 * (size - 1));
+        return from.map((channel, i) => Math.round(channel + (to[i] - channel) * t));
     });
 }
 
-const ORANGE = [0xff, 0x6b, 0x35, 0xff];
-const DARK = [0x2d, 0x2d, 0x2d, 0xff];
+// Sampled from the Trakteer logo PNG: #be1e2d top-left to #db2935 bottom-right.
+const RED_FROM = [0xbe, 0x1e, 0x2d, 0xff];
+const RED_TO = [0xdb, 0x29, 0x35, 0xff];
+
+/**
+ * The Trakteer logo (tools/assets/trakteer-logo.png, 150x150, rounded corners) scaled to
+ * `size`. Scaling needs a real resampler, so this uses @resvg/resvg-js, a devDependency
+ * that tools/make-key-icons.js already needs.
+ */
+function logo(size) {
+    let Resvg;
+    try {
+        ({ Resvg } = require('@resvg/resvg-js'));
+    } catch {
+        console.error('make-icons: @resvg/resvg-js is not installed; run "npm install" at the repo root first');
+        process.exit(1);
+    }
+    const source = fs.readFileSync(path.join(__dirname, 'assets', 'trakteer-logo.png')).toString('base64');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+        + `<image width="${size}" height="${size}" href="data:image/png;base64,${source}"/></svg>`;
+    return new Resvg(svg).render().asPng();
+}
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
+// Sizes follow the SDK style guide: plugin icon 128, action icon 40 (the host scales the
+// plugin icon down for the category list). key.png is only the fallback key image.
 const files = {
-    'icon-plugin.png': tile(72, ORANGE, DARK),
-    'icon-action.png': tile(40, ORANGE, DARK),
-    'key.png': tile(144, DARK, ORANGE),
+    'icon-plugin.png': logo(128),
+    'icon-action.png': logo(40),
+    'key.png': tile(144, RED_FROM, RED_TO),
 };
 
 for (const [name, buffer] of Object.entries(files)) {

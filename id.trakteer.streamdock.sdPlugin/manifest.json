@@ -14,7 +14,8 @@
         "baseUrl": "https://ws.trakteer.id",
         "action": "next",
         "tokenId": "",
-        "label": ""
+        "label": "",
+        "icon": ""
       },
       "Controllers": ["Keypad"],
       "UserTitleEnabled": true,
@@ -39,7 +40,8 @@
         "widgetType": "alert-box",
         "quantity": 1,
         "streamKey": "",
-        "label": "Test"
+        "label": "Test",
+        "icon": ""
       },
       "Controllers": ["Keypad"],
       "UserTitleEnabled": true,
@@ -65,7 +67,8 @@
         "streamKey": "",
         "amount": "",
         "kind": "",
-        "label": ""
+        "label": "",
+        "icon": ""
       },
       "Controllers": ["Keypad"],
       "UserTitleEnabled": true,

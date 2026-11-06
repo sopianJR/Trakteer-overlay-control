@@ -2,10 +2,11 @@
  * Button feedback.
  *
  * Feedback is deliberately conservative: showOk/showAlert (the native StreamDock
- * overlays) plus a short title line. We do NOT render SVG data URIs through
- * setImage — on StreamDock hardware an SVG data URI is reported to render black
- * (see docs/device-compatibility.md), so a PNG-free, title-based status is the
- * option that degrades safely on every device.
+ * overlays) plus a short title line. The status is not drawn with setImage: the key
+ * image is its Phosphor icon (lib/icons.js), and an SVG data URI is reported to render
+ * black on StreamDock hardware (an unsourced report, see the setImage section of
+ * docs/device-compatibility.md), so a title-based status is the option that degrades
+ * safely on every device.
  *
  * Titles are wrapped here and sent with the SDK's row argument left at its
  * default. The SDK's own wrapping (utils/plugin.js setTitle with row > 0) starts
